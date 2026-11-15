@@ -5,6 +5,9 @@
 // GYMPING_FAKE_WA=1 swaps in a stand-in that sends nothing, for trying the app
 // without a phone. Numbers ending in 0000 fail, to exercise the failure path.
 
+const fs = require('fs');
+const path = require('path');
+
 const fake = process.env.GYMPING_FAKE_WA === '1';
 
 let state = 'starting'; // starting | qr | connected | disconnected
@@ -52,14 +55,25 @@ function start() {
   const { Client, LocalAuth } = require('whatsapp-web.js');
   const qrcode = require('qrcode');
 
+  // Keep the WhatsApp session on the persistent disk when hosted.
+  const dataPath = process.env.GYMPING_DATA_DIR
+    ? path.join(process.env.GYMPING_DATA_DIR, 'wwebjs_auth')
+    : undefined;
+  // After an abrupt restart the browser profile can still look "in use"; clear the stale locks.
+  for (const lock of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    fs.rmSync(path.join(dataPath || '.wwebjs_auth', 'session', lock), { force: true });
+  }
+
   const c = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({ dataPath }),
     // WhatsApp Web can take well over the library's 30s default to load on a slow PC or connection.
     authTimeoutMs: 120000,
     puppeteer: {
       // GYMPING_SHOW_BROWSER=1 opens the WhatsApp Web window, to see what it is stuck on.
       headless: process.env.GYMPING_SHOW_BROWSER !== '1',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      // On a server, use the system browser named by PUPPETEER_EXECUTABLE_PATH.
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
     }
   });
   client = c;

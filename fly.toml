@@ -1,0 +1,39 @@
+# Fly.io settings for the GymPing backend.
+
+app = "CHANGE-ME-gymping"      # your app's name; `fly launch` sets this
+primary_region = "iad"         # `fly launch` sets this to the region you pick
+
+[env]
+  HOST = "0.0.0.0"
+  PORT = "8080"
+  GYMPING_HOSTED = "1"
+  GYMPING_DATA_DIR = "/data"
+  # Your gym's time zone, so "9 AM" and "4 days before" mean your local time.
+  # Names: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+  TZ = "America/New_York"
+
+# Members and the WhatsApp link live here and survive restarts.
+[mounts]
+  source = "gymping_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Must stay on all the time, or reminders don't go out.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+
+# The hidden browser needs about 1 GB of memory.
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "1gb"

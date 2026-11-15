@@ -218,16 +218,18 @@ export default function Settings({ status }) {
 
         <div>
           <WhatsAppCard status={status} onUnlink={unlink} />
-          <div className="card card-body">
-            <h2>Turn off</h2>
-            <p className="sub">
-              GymPing keeps running in the background, even with this tab closed, so reminders go out on time.
-            </p>
-            <button type="button" className="btn secondary" onClick={turnOff}>
-              <Icon name="power" size={16} />
-              Turn GymPing off
-            </button>
-          </div>
+          {!status?.hosted && (
+            <div className="card card-body">
+              <h2>Turn off</h2>
+              <p className="sub">
+                GymPing keeps running in the background, even with this tab closed, so reminders go out on time.
+              </p>
+              <button type="button" className="btn secondary" onClick={turnOff}>
+                <Icon name="power" size={16} />
+                Turn GymPing off
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

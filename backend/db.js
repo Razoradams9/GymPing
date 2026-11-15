@@ -4,7 +4,9 @@ const path = require('path');
 const DEFAULT_TEMPLATE =
   'Hey {first_name}! 👋 Your membership at {gym} expires {when} ({date}). Renew now to keep your streak going: {link}';
 
-const db = new DatabaseSync(process.env.GYMPING_DB || path.join(__dirname, 'gymping.db'));
+// GYMPING_DATA_DIR is where a hosted copy keeps its files (a persistent disk).
+const dataDir = process.env.GYMPING_DATA_DIR || __dirname;
+const db = new DatabaseSync(process.env.GYMPING_DB || path.join(dataDir, 'gymping.db'));
 
 db.exec('PRAGMA journal_mode = WAL;');
 

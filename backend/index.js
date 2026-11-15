@@ -35,6 +35,9 @@ app.use('/api', (req, res, next) => {
   res.status(401).json({ error: 'Password required' });
 });
 
+// For the host's health checks; reveals nothing.
+app.get('/healthz', (req, res) => res.send('ok'));
+
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
 
 function withDays(member, today = rem.localDate()) {
@@ -56,7 +59,7 @@ function parseMember(body) {
 // ---- WhatsApp ----
 
 app.get('/api/status', (req, res) => {
-  res.json(wa.getStatus());
+  res.json({ ...wa.getStatus(), hosted: process.env.GYMPING_HOSTED === '1' });
 });
 
 app.get(

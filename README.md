@@ -60,6 +60,42 @@ By default GymPing can only be opened on the computer it runs on. To open it fro
 HOST=0.0.0.0 GYMPING_PASSWORD=choose-a-password npm start
 ```
 
+## Hosting it online (Fly.io + Vercel)
+
+The backend runs on [Fly.io](https://fly.io) (paid, a few dollars a month for the 1 GB machine it needs) and the dashboard on [Vercel](https://vercel.com). One hosted copy serves one gym.
+
+**Backend on Fly.io** — install [flyctl](https://fly.io/docs/flyctl/install/), then in the `GymPing` folder:
+
+```bash
+fly auth login
+```
+
+```bash
+fly launch --no-deploy --copy-config
+```
+
+Pick an app name and region when asked. Open `fly.toml` and set `TZ` to your gym's time zone. Then create the disk (same region), set the password you will log in with, and deploy:
+
+```bash
+fly volumes create gymping_data --size 1
+```
+
+```bash
+fly secrets set GYMPING_PASSWORD=choose-a-password
+```
+
+```bash
+fly deploy
+```
+
+**Dashboard on Vercel**
+
+1. In `frontend/vercel.json`, replace `CHANGE-ME-gymping` with your Fly app name, then commit and push.
+2. On Vercel, import the GitHub repo and set **Root Directory** to `frontend`. Deploy.
+3. Open the Vercel address, enter your password, and scan the QR code in Settings.
+
+Keep it to one Fly machine (`fly scale count 1`); two would fight over the same WhatsApp link.
+
 ## Options
 
 | Variable | Meaning | Default |
@@ -68,6 +104,8 @@ HOST=0.0.0.0 GYMPING_PASSWORD=choose-a-password npm start
 | `HOST` | Address to listen on | `127.0.0.1` |
 | `GYMPING_PASSWORD` | Password for the app (required if `HOST` is not local) | none |
 | `GYMPING_DB` | Where the data file is kept | `backend/gymping.db` |
+| `GYMPING_DATA_DIR` | Folder for the data file and WhatsApp session (hosted copies) | `backend/` |
+| `TZ` | Time zone used for send times and dates | the computer's |
 | `GYMPING_SHOW_BROWSER` | Set to `1` to show the WhatsApp Web window, for troubleshooting | off |
 | `GYMPING_FAKE_WA` | Set to `1` to try the app without WhatsApp; nothing is sent | off |
 

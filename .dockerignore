@@ -1,0 +1,10 @@
+.git
+**/node_modules
+frontend
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.log
+**/.wwebjs_auth
+**/.wwebjs_cache
+backend/test
