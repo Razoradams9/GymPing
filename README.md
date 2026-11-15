@@ -67,15 +67,17 @@ One hosted copy serves one gym. Render's free plan has no lasting disk, so GymPi
 1. **Create the database.** Sign up at [Neon](https://neon.tech) (free), create a project, and copy its connection string (it starts with `postgresql://`). Don't use Render's own free database: it is deleted after 30 days.
 2. **Set your time zone.** In `render.yaml`, change `TZ` to your gym's time zone, then commit and push.
 3. **Create the app.** On [Render](https://render.com): New → Blueprint → pick this repo. When asked, enter `DATABASE_URL` (the connection string from step 1).
-4. **Link WhatsApp.** Open the `…onrender.com` address and scan the QR code in Settings. Keep the page open for two minutes afterwards: the link is saved to the database about a minute after connecting.
+4. **Link WhatsApp.** Open the `…onrender.com` address and scan the QR code.
 
 **There is no login by default**, so anyone who has the address can see your members and send messages. To require a password, add `GYMPING_PASSWORD` under Environment in Render.
 
+The hosted copy uses a lightweight WhatsApp link with no hidden browser, so it fits in the free plan's 512 MB of memory.
+
 Limits of the free plan:
 
-- **Memory is tight** (512 MB for a browser that prefers 1 GB). If WhatsApp keeps disconnecting or the app keeps restarting, it needs Render's paid plan or another host.
 - **It sleeps without visitors.** GymPing visits its own address every 10 minutes to stay awake. For a second safety net, point a free uptime monitor (e.g. UptimeRobot) at `https://YOUR-APP.onrender.com/healthz`.
-- **Restarts happen.** After one, GymPing restores the WhatsApp link from the database and catches up on any reminders it missed.
+- **Restarts happen.** After one, GymPing reconnects to WhatsApp by itself and catches up on any reminders it missed.
+- **Contacts fill in gradually.** "Pick from WhatsApp contacts" lists the contacts WhatsApp shares after linking, which can take a few minutes and may not be everyone.
 
 Other hosts: the same `Dockerfile` runs anywhere that runs containers. `fly.toml` is a ready setup for Fly.io (paid) with a disk instead of a database. To serve the dashboard from Vercel instead, set the app address in `frontend/vercel.json` and use `frontend` as the root directory.
 
@@ -91,6 +93,7 @@ Other hosts: the same `Dockerfile` runs anywhere that runs containers. `fly.toml
 | `GYMPING_DATA_DIR` | Folder for the data file and WhatsApp session (hosted copies) | `backend/` |
 | `TZ` | Time zone used for send times and dates | the computer's |
 | `GYMPING_SHOW_BROWSER` | Set to `1` to show the WhatsApp Web window, for troubleshooting | off |
+| `GYMPING_WA_ENGINE` | `light` connects to WhatsApp without a hidden browser (used when hosted) | browser |
 | `GYMPING_FAKE_WA` | Set to `1` to try the app without WhatsApp; nothing is sent | off |
 
 Your data lives in `backend/gymping.db` and the WhatsApp session in `backend/.wwebjs_auth/`. Back up both.

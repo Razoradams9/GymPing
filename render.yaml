@@ -14,9 +14,6 @@ services:
       # Names: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
       - key: TZ
         value: America/New_York
-      # Leaves most of the small free server's memory for the WhatsApp browser.
-      - key: NODE_OPTIONS
-        value: --max-old-space-size=160
       # Render asks you for this when you create the service.
       - key: DATABASE_URL
         sync: false

@@ -14,6 +14,16 @@ let query;
 let close = async () => {};
 
 const TABLES = (id) => `
+  -- Lightweight WhatsApp link: its sign-in keys and the owner's contacts.
+  CREATE TABLE IF NOT EXISTS wa_auth (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS wa_contacts (
+    phone TEXT PRIMARY KEY,
+    name TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS members (
     id ${id},
     name TEXT NOT NULL,
@@ -260,7 +270,51 @@ async function deleteSession(name) {
   await query('DELETE FROM wa_sessions WHERE name = ?', [name]);
 }
 
+// ---- Lightweight WhatsApp link ----
+
+async function getWaAuth(key) {
+  const row = await first('SELECT value FROM wa_auth WHERE key = ?', [key]);
+  return row ? row.value : null;
+}
+
+async function setWaAuth(key, value) {
+  await query(
+    'INSERT INTO wa_auth (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value',
+    [key, value]
+  );
+}
+
+async function deleteWaAuth(key) {
+  await query('DELETE FROM wa_auth WHERE key = ?', [key]);
+}
+
+async function clearWaAuth() {
+  await query('DELETE FROM wa_auth');
+}
+
+async function saveWaContact(phone, name) {
+  await query(
+    'INSERT INTO wa_contacts (phone, name) VALUES (?, ?) ON CONFLICT (phone) DO UPDATE SET name = excluded.name',
+    [phone, name]
+  );
+}
+
+function getWaContacts() {
+  return query('SELECT name, phone FROM wa_contacts ORDER BY name ASC');
+}
+
+async function clearWaContacts() {
+  await query('DELETE FROM wa_contacts');
+}
+
 module.exports = {
+  getWaAuth,
+  setWaAuth,
+  deleteWaAuth,
+  clearWaAuth,
+  saveWaContact,
+  getWaContacts,
+  clearWaContacts,
   DEFAULT_TEMPLATE,
   usePostgres,
   init,

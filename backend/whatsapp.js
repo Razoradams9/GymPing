@@ -1,6 +1,10 @@
 // WhatsApp link. The owner scans a QR code once (like WhatsApp Web) and the
-// session is kept on disk. If WhatsApp logs the session out, a fresh QR code is
+// session is kept. If WhatsApp logs the session out, a fresh QR code is
 // produced automatically.
+//
+// Two ways of connecting:
+//   browser (default)  drives WhatsApp Web in a hidden browser; needs about 1 GB of memory
+//   light              talks to WhatsApp directly; for small servers. GYMPING_WA_ENGINE=light
 //
 // GYMPING_FAKE_WA=1 swaps in a stand-in that sends nothing, for trying the app
 // without a phone. Numbers ending in 0000 fail, to exercise the failure path.
@@ -12,6 +16,7 @@ const os = require('os');
 const db = require('./db');
 
 const fake = process.env.GYMPING_FAKE_WA === '1';
+const light = !fake && process.env.GYMPING_WA_ENGINE === 'light' ? require('./wa-light') : null;
 
 let state = 'starting'; // starting | qr | connected | disconnected
 let currentQR = null;
@@ -62,6 +67,26 @@ function start() {
         });
     }
     setTimeout(setConnected, qrMs + 100);
+    return;
+  }
+
+  if (light) {
+    const hooks = {
+      setQR: (url) => {
+        currentQR = url;
+        state = 'qr';
+      },
+      setConnected,
+      setDisconnected: () => {
+        state = 'disconnected';
+        currentQR = null;
+      }
+    };
+    light.start(hooks).catch((err) => {
+      console.error('WhatsApp failed to start, retrying in 30s:', (err && err.message) || err);
+      state = 'disconnected';
+      setTimeout(start, 30000);
+    });
     return;
   }
 
@@ -162,6 +187,7 @@ async function sendMessage(phone, message) {
     console.log(`[fake WhatsApp] to +${digits}: ${message}`);
     return;
   }
+  if (light) return light.sendMessage(digits, message);
   const id = await client.getNumberId(digits);
   if (!id) throw new Error('This number is not on WhatsApp');
   await client.sendMessage(id._serialized, message);
@@ -177,6 +203,7 @@ async function getContacts() {
       { name: 'Wrong Number Demo', phone: '+14155550000' }
     ];
   }
+  if (light) return light.getContacts();
   const contacts = await client.getContacts();
   const seen = new Set();
   const out = [];
@@ -193,6 +220,11 @@ async function getContacts() {
 // Unlink this WhatsApp account; a new QR code appears for linking another.
 async function logout() {
   if (fake) return;
+  if (light) {
+    state = 'disconnected';
+    currentQR = null;
+    return light.logout();
+  }
   if (!client) return;
   const c = client;
   state = 'disconnected';
@@ -206,6 +238,7 @@ async function stop() {
   const c = client;
   client = null;
   state = 'disconnected';
+  if (light) await light.stop().catch(() => {});
   if (c) await c.destroy().catch(() => {});
 }
 
