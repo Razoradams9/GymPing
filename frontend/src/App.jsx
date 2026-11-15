@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import Navbar from './components/Navbar';
+import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom';
+import Icon from './components/Icon';
 import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
 import Settings from './pages/Settings';
 import { api, setPassword, setUnauthorizedHandler } from './api';
-import { button, card, input } from './ui';
+
+function Brand() {
+  return (
+    <div className="brand">
+      <div className="brand-mark"><Icon name="dumbbell" size={19} /></div>
+      <span>GymPing</span>
+    </div>
+  );
+}
 
 function Login({ onDone }) {
   const [pw, setPw] = useState('');
@@ -23,15 +31,43 @@ function Login({ onDone }) {
   }
 
   return (
-    <form onSubmit={submit} style={{ ...card, maxWidth: '360px', margin: '4rem auto', padding: '1.5rem' }}>
-      <h2 style={{ marginTop: 0, color: '#1a1a2e' }}>🏋️ GymPing</h2>
-      <label style={{ fontWeight: 600 }}>
-        Password
-        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} style={input} autoFocus />
-      </label>
-      {wrong && <p style={{ color: '#c62828', marginTop: 0 }}>Wrong password.</p>}
-      <button type="submit" style={button()}>Open</button>
-    </form>
+    <div className="login">
+      <form onSubmit={submit} className="card card-body">
+        <Brand />
+        <label className="field">
+          <span>Password</span>
+          <input type="password" className="input" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
+          {wrong && <small style={{ color: 'var(--danger)' }}>Wrong password.</small>}
+        </label>
+        <button type="submit" className="btn" style={{ width: '100%' }}>Open GymPing</button>
+      </form>
+    </div>
+  );
+}
+
+function Sidebar({ status }) {
+  const connected = !!status?.connected;
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-inner">
+      <Brand />
+      <nav className="nav">
+        <NavLink to="/" end><Icon name="dashboard" /><span>Dashboard</span></NavLink>
+        <NavLink to="/members"><Icon name="users" /><span>Members</span></NavLink>
+        <NavLink to="/settings"><Icon name="settings" /><span>Settings</span></NavLink>
+      </nav>
+      {status && (
+        <Link to="/settings" className={`wa-pill ${connected ? '' : 'off'}`}>
+          <span className="dot" />
+          {connected ? (
+            <span>WhatsApp<span className="long"> connected</span></span>
+          ) : (
+            <span>Connect WhatsApp</span>
+          )}
+        </Link>
+      )}
+      </div>
+    </aside>
   );
 }
 
@@ -52,18 +88,25 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Navbar status={status} />
-      {status && !status.connected && (
-        <div style={{ background: '#c62828', color: '#fff', padding: '0.8rem 2rem', fontWeight: 600 }}>
-          ⚠️ WhatsApp is not connected, so reminders are paused.{' '}
-          <Link to="/settings" style={{ color: '#fff' }}>Open Settings to connect</Link>
-        </div>
-      )}
-      <Routes>
-        <Route path="/" element={<Dashboard status={status} />} />
-        <Route path="/members" element={<Members status={status} />} />
-        <Route path="/settings" element={<Settings status={status} />} />
-      </Routes>
+      <div className="shell">
+        <Sidebar status={status} />
+        <main className="main">
+          {status && !status.connected && (
+            <div className="alert banner" role="alert">
+              <Icon name="alert" />
+              <div>
+                WhatsApp is not connected, so reminders are paused.{' '}
+                <Link to="/settings">Connect it in Settings</Link>
+              </div>
+            </div>
+          )}
+          <Routes>
+            <Route path="/" element={<Dashboard status={status} />} />
+            <Route path="/members" element={<Members status={status} />} />
+            <Route path="/settings" element={<Settings status={status} />} />
+          </Routes>
+        </main>
+      </div>
     </BrowserRouter>
   );
 }

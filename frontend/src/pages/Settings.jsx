@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Icon from '../components/Icon';
+import { Alert, PageHead } from '../components/ui';
 import { api } from '../api';
-import { button, card, colors, errorBox, hint, input, label, page } from '../ui';
 
-const box = { ...card, padding: '1.5rem 2rem' };
+const PLACEHOLDERS = ['{first_name}', '{name}', '{gym}', '{when}', '{date}', '{link}'];
 
 function hourLabel(h) {
   return `${h % 12 === 0 ? 12 : h % 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
@@ -21,17 +22,66 @@ function preview(template, s) {
   return template.replace(/\{(\w+)\}/g, (match, key) => (key in values ? values[key] : match));
 }
 
+function WhatsAppCard({ status, onUnlink }) {
+  return (
+    <div className="card card-body">
+      <h2>WhatsApp</h2>
+      {status?.connected ? (
+        <>
+          <p className="sub">Reminders are sent from the linked number.</p>
+          <div className="connected">
+            <div className="stat-icon tone-green"><Icon name="check" size={21} /></div>
+            <div>
+              <div className="person-name">WhatsApp Connected</div>
+              <button className="link-btn" style={{ color: 'var(--muted)', fontWeight: 500 }} onClick={onUnlink}>
+                Unlink this number
+              </button>
+            </div>
+          </div>
+        </>
+      ) : status?.qr ? (
+        <>
+          <p className="sub">Scan this code once to link your number.</p>
+          <img src={status.qr} alt="WhatsApp QR code" className="qr" />
+          <ol className="steps">
+            <li>Open WhatsApp on your phone</li>
+            <li>Settings → Linked Devices → Link a Device</li>
+            <li>Point your phone at this code</li>
+          </ol>
+        </>
+      ) : (
+        <>
+          <p className="sub">Getting a QR code from WhatsApp. This can take a minute or two.</p>
+          <div className="connected">
+            <div className="spinner" />
+            <span>Connecting…</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Settings({ status }) {
   const [form, setForm] = useState(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [off, setOff] = useState(false);
+  const messageRef = useRef(null);
 
   useEffect(() => {
     api('/settings').then(setForm).catch((err) => setError(err.message));
   }, []);
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+
+  function insert(placeholder) {
+    const el = messageRef.current;
+    const text = form.message_template || '';
+    const at = el ? el.selectionStart : text.length;
+    setForm({ ...form, message_template: text.slice(0, at) + placeholder + text.slice(el ? el.selectionEnd : at) });
+    if (el) el.focus();
+  }
 
   async function save(e) {
     e.preventDefault();
@@ -60,7 +110,7 @@ export default function Settings({ status }) {
     }
   }
 
-  async function disconnect() {
+  async function unlink() {
     if (!window.confirm('Unlink this WhatsApp number? Reminders stop until you scan a new QR code.')) return;
     try {
       await api('/whatsapp/logout', { method: 'POST' });
@@ -71,121 +121,114 @@ export default function Settings({ status }) {
 
   if (off) {
     return (
-      <div style={{ ...page, maxWidth: '680px' }}>
-        <div style={box}>
-          <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>GymPing is turned off</h3>
-          <p style={{ color: '#555', marginBottom: 0 }}>
+      <div className="page">
+        <div className="card">
+          <div className="empty">
+            <div className="stat-icon tone-neutral"><Icon name="power" size={20} /></div>
+            <strong>GymPing is turned off</strong>
             You can close this tab. Use the GymPing icon to start it again.
-          </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ ...page, maxWidth: '680px' }}>
-      <h2 style={{ color: '#1a1a2e', marginTop: 0 }}>Settings</h2>
-      {error && <div style={errorBox}>{error}</div>}
+    <div className="page">
+      <PageHead title="Settings" subtitle="Your gym, your message, your WhatsApp link" />
+      <Alert>{error}</Alert>
 
-      <div style={box}>
-        <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>WhatsApp Connection</h3>
-        {status?.connected ? (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
-            <span style={{ background: '#e8f5e9', color: colors.green, borderRadius: '6px', padding: '0.6rem 1.2rem', fontWeight: 600 }}>
-              ✅ WhatsApp Connected
-            </span>
-            <button onClick={disconnect} style={button(colors.grey, true)}>Unlink this number</button>
-          </div>
-        ) : status?.qr ? (
-          <div>
-            <p style={{ color: '#555', marginTop: 0 }}>
-              On your phone: WhatsApp → Settings → Linked Devices → Link a Device, then scan this code.
+      <div className="settings-grid">
+        <div>
+          {form && (
+            <form onSubmit={save}>
+              <div className="card card-body">
+                <h2>Gym</h2>
+                <p className="sub">Shown in every reminder.</p>
+                <label className="field">
+                  <span>Gym name</span>
+                  <input type="text" className="input" value={form.gym_name || ''} onChange={set('gym_name')} />
+                </label>
+                <label className="field">
+                  <span>Payment / renewal link</span>
+                  <input type="url" className="input" value={form.payment_url || ''} onChange={set('payment_url')} placeholder="https://…" />
+                  <small>Members tap this link in the reminder to renew.</small>
+                </label>
+                <label className="field" style={{ marginBottom: 0 }}>
+                  <span>"Renewed" button adds</span>
+                  <select className="input" style={{ maxWidth: 180 }} value={form.renewal_months} onChange={set('renewal_months')}>
+                    {[1, 2, 3, 6, 12].map((n) => (
+                      <option key={n} value={n}>{n} month{n > 1 ? 's' : ''}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="card card-body">
+                <h2>Reminders</h2>
+                <p className="sub">
+                  Each member gets one message a day, starting 4 days before their membership ends
+                  and stopping as soon as you mark them renewed.
+                </p>
+                <label className="field">
+                  <span>Send from</span>
+                  <select className="input" style={{ maxWidth: 180 }} value={form.send_hour} onChange={set('send_hour')}>
+                    {Array.from({ length: 21 }, (_, h) => (
+                      <option key={h} value={h}>{hourLabel(h)}</option>
+                    ))}
+                  </select>
+                  <small>Nothing is sent automatically after 9 PM.</small>
+                </label>
+                <label className="field">
+                  <span>Message</span>
+                  <textarea
+                    ref={messageRef}
+                    className="input"
+                    rows={4}
+                    value={form.message_template || ''}
+                    onChange={set('message_template')}
+                  />
+                </label>
+                <div className="help" style={{ marginTop: -8 }}>
+                  Click to insert. These are filled in for each member.{' '}
+                  <button type="button" className="link-btn" onClick={() => setForm({ ...form, message_template: form.default_template })}>
+                    Reset to original
+                  </button>
+                  <div className="chips">
+                    {PLACEHOLDERS.map((p) => (
+                      <button type="button" className="chip" key={p} onClick={() => insert(p)}>{p}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="field" style={{ margin: '18px 0 0' }}>
+                  <span>Preview</span>
+                  <div className="chat">
+                    <div className="bubble">{preview(form.message_template || '', form)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="save-row">
+                <button type="submit" className="btn">Save settings</button>
+                {saved && <span className="saved" role="status"><Icon name="check" size={16} />Saved</span>}
+              </div>
+            </form>
+          )}
+        </div>
+
+        <div>
+          <WhatsAppCard status={status} onUnlink={unlink} />
+          <div className="card card-body">
+            <h2>Turn off</h2>
+            <p className="sub">
+              GymPing keeps running in the background, even with this tab closed, so reminders go out on time.
             </p>
-            <img
-              src={status.qr}
-              alt="WhatsApp QR code"
-              style={{ display: 'block', width: '240px', height: '240px', borderRadius: '8px', border: '1px solid #eee' }}
-            />
-            <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: 0 }}>Waiting for scan…</p>
+            <button type="button" className="btn secondary" onClick={turnOff}>
+              <Icon name="power" size={16} />
+              Turn GymPing off
+            </button>
           </div>
-        ) : (
-          <p style={{ color: '#888', margin: 0 }}>Connecting to WhatsApp… a QR code will appear shortly.</p>
-        )}
-      </div>
-
-      {form && (
-        <form onSubmit={save}>
-          <div style={box}>
-            <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>Gym</h3>
-            <label style={label}>
-              Gym Name
-              <input type="text" value={form.gym_name || ''} onChange={set('gym_name')} style={input} />
-            </label>
-            <label style={label}>
-              Payment / Renewal Link
-              <input type="url" value={form.payment_url || ''} onChange={set('payment_url')} placeholder="https://…" style={input} />
-            </label>
-            <label style={label}>
-              "Renewed" button adds
-              <select value={form.renewal_months} onChange={set('renewal_months')} style={{ ...input, maxWidth: '160px' }}>
-                {[1, 2, 3, 6, 12].map((n) => (
-                  <option key={n} value={n}>{n} month{n > 1 ? 's' : ''}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div style={box}>
-            <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>Reminders</h3>
-            <p style={{ color: '#555', marginTop: 0 }}>
-              Each member gets one message a day, starting 4 days before their membership ends and
-              stopping as soon as you mark them renewed.
-            </p>
-            <label style={label}>
-              Send from
-              <select value={form.send_hour} onChange={set('send_hour')} style={{ ...input, maxWidth: '160px' }}>
-                {Array.from({ length: 21 }, (_, h) => (
-                  <option key={h} value={h}>{hourLabel(h)}</option>
-                ))}
-              </select>
-            </label>
-            <p style={hint}>Nothing is sent automatically after 9 PM.</p>
-            <label style={label}>
-              Message
-              <textarea
-                rows={4}
-                value={form.message_template || ''}
-                onChange={set('message_template')}
-                style={{ ...input, resize: 'vertical' }}
-              />
-            </label>
-            <p style={hint}>
-              These are filled in for each member: {'{first_name}'} {'{name}'} {'{gym}'} {'{when}'} {'{date}'} {'{link}'}{' '}
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, message_template: form.default_template })}
-                style={{ background: 'none', border: 'none', color: colors.blue, cursor: 'pointer', padding: 0, fontSize: 'inherit' }}
-              >
-                Reset to original
-              </button>
-            </p>
-            <div style={{ fontWeight: 600, color: '#333', marginBottom: '0.3rem' }}>Preview</div>
-            <div style={{ background: '#dcf8c6', borderRadius: '8px', padding: '0.7rem 1rem', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-              {preview(form.message_template || '', form)}
-            </div>
-          </div>
-
-          <button type="submit" style={button()}>Save Settings</button>
-          {saved && <span style={{ marginLeft: '1rem', color: colors.green, fontWeight: 600 }}>✅ Saved!</span>}
-        </form>
-      )}
-
-      <div style={{ ...box, marginTop: '1.5rem' }}>
-        <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>Turn Off</h3>
-        <p style={{ color: '#555', marginTop: 0 }}>
-          GymPing keeps running in the background, even with this tab closed, so reminders go out on time.
-        </p>
-        <button type="button" onClick={turnOff} style={button(colors.grey)}>Turn GymPing off</button>
+        </div>
       </div>
     </div>
   );

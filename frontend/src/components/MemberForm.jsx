@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Icon from './Icon';
+import { Alert, Avatar } from './ui';
 import { api } from '../api';
-import { button, colors, errorBox, hint, input, label } from '../ui';
 
 export default function MemberForm({ onSubmit, onCancel, initialData, whatsappConnected }) {
   const [name, setName] = useState(initialData?.name || '');
@@ -13,6 +14,12 @@ export default function MemberForm({ onSubmit, onCancel, initialData, whatsappCo
   const [contacts, setContacts] = useState(null);
   const [search, setSearch] = useState('');
   const [loadingContacts, setLoadingContacts] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onCancel();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
 
   async function openContacts() {
     setError('');
@@ -51,112 +58,87 @@ export default function MemberForm({ onSubmit, onCancel, initialData, whatsappCo
     .slice(0, 50);
 
   return (
-    <div
-      style={{
-        background: '#fff',
-        borderRadius: '10px',
-        padding: '1.5rem',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
-        maxWidth: '480px',
-        margin: '0 auto 1.5rem'
-      }}
-    >
-      <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>{initialData ? 'Edit Member' : 'Add Member'}</h3>
-      {error && <div style={errorBox}>{error}</div>}
+    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label={initialData ? 'Edit member' : 'Add member'}>
+        <div className="modal-head">
+          <h2>{initialData ? 'Edit member' : 'Add member'}</h2>
+          <button type="button" className="btn ghost" onClick={onCancel} aria-label="Close">
+            <Icon name="x" />
+          </button>
+        </div>
+        <div className="modal-body">
+          <Alert>{error}</Alert>
 
-      {!initialData && (
-        <div style={{ marginBottom: '1rem' }}>
-          {contacts === null ? (
-            <>
-              <button
-                type="button"
-                onClick={openContacts}
-                disabled={!whatsappConnected || loadingContacts}
-                style={{ ...button(colors.green), opacity: whatsappConnected ? 1 : 0.5 }}
-              >
-                {loadingContacts ? 'Loading contacts…' : '📱 Pick from WhatsApp contacts'}
-              </button>
-              {!whatsappConnected && (
-                <p style={{ ...hint, margin: '0.4rem 0 0' }}>Connect WhatsApp in Settings to pick from your contacts.</p>
-              )}
-            </>
-          ) : (
-            <div style={{ border: '1px solid #ccc', borderRadius: '6px', padding: '0.75rem' }}>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search your contacts…"
-                style={{ ...input, marginBottom: '0.5rem' }}
-                autoFocus
-              />
-              <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
-                {shown.length === 0 && <p style={{ color: '#888', margin: '0.5rem 0' }}>No contacts found.</p>}
-                {shown.map((c) => (
-                  <button
-                    type="button"
-                    key={c.phone}
-                    onClick={() => pick(c)}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      gap: '1rem',
-                      width: '100%',
-                      padding: '0.5rem',
-                      background: 'none',
-                      border: 'none',
-                      borderBottom: '1px solid #eee',
-                      cursor: 'pointer',
-                      fontSize: '0.95rem',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <span>{c.name}</span>
-                    <span style={{ color: '#777' }}>{c.phone}</span>
-                  </button>
-                ))}
+          {!initialData &&
+            (contacts === null ? (
+              <div style={{ marginBottom: 16 }}>
+                <button
+                  type="button"
+                  className="btn secondary"
+                  style={{ width: '100%' }}
+                  onClick={openContacts}
+                  disabled={!whatsappConnected || loadingContacts}
+                >
+                  <Icon name="phone" />
+                  {loadingContacts ? 'Loading contacts…' : 'Pick from WhatsApp contacts'}
+                </button>
+                {!whatsappConnected && <span className="help">Connect WhatsApp in Settings to pick from your contacts.</span>}
               </div>
-              <button type="button" onClick={() => setContacts(null)} style={{ ...button(colors.grey, true), marginTop: '0.5rem' }}>
-                Close
-              </button>
+            ) : (
+              <div className="contacts">
+                <input
+                  type="text"
+                  className="input"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search your contacts…"
+                  aria-label="Search your contacts"
+                  autoFocus
+                />
+                <div className="contact-list">
+                  {shown.length === 0 && <p className="help" style={{ padding: 8 }}>No contacts found.</p>}
+                  {shown.map((c) => (
+                    <button type="button" className="contact" key={c.phone} onClick={() => pick(c)}>
+                      <Avatar name={c.name} />
+                      <span>{c.name}</span>
+                      <span className="person-sub">{c.phone}</span>
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="link-btn" style={{ marginTop: 8 }} onClick={() => setContacts(null)}>
+                  Type it in instead
+                </button>
+              </div>
+            ))}
+
+          <form onSubmit={handleSubmit}>
+            <label className="field">
+              <span>Name</span>
+              <input type="text" className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+            </label>
+            <label className="field">
+              <span>Phone</span>
+              <input
+                type="tel"
+                className="input"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+14155552671"
+                required
+              />
+              <small>Include the country code, e.g. +1 for the US or +44 for the UK.</small>
+            </label>
+            <label className="field">
+              <span>Membership end date</span>
+              <input type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+            </label>
+            <div className="modal-foot">
+              <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
+              <button type="submit" className="btn" disabled={saving}>{saving ? 'Saving…' : 'Save member'}</button>
             </div>
-          )}
+          </form>
         </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <label style={label}>
-          Name
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={input} required />
-        </label>
-
-        <label style={label}>
-          Phone
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+14155552671"
-            style={input}
-            required
-          />
-        </label>
-        <p style={hint}>Include the country code, e.g. +1 for the US or +44 for the UK.</p>
-
-        <label style={label}>
-          Membership End Date
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={input} required />
-        </label>
-
-        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-          <button type="submit" disabled={saving} style={button()}>
-            {saving ? 'Saving…' : 'Save Member'}
-          </button>
-          <button type="button" onClick={onCancel} style={button(colors.grey)}>
-            Cancel
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   );
 }

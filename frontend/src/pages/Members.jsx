@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import MemberForm from '../components/MemberForm';
-import { api, daysLabel, formatDate } from '../api';
-import { button, card, colors, empty, errorBox, input, page, rowColor, table, td, th } from '../ui';
+import Icon from '../components/Icon';
+import { Alert, DaysBadge, Empty, PageHead, Person, RenewButton } from '../components/ui';
+import { api, formatDate } from '../api';
 
 export default function Members({ status }) {
   const [members, setMembers] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(null); // null | { member } where member is null for "add"
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
 
@@ -32,17 +32,14 @@ export default function Members({ status }) {
     }
   }
 
+  const closeForm = useCallback(() => setForm(null), []);
+
   // Errors are shown inside the form, so let them propagate.
   async function handleSubmit(data) {
-    if (editing) await api(`/members/${editing.id}`, { method: 'PUT', body: data });
+    if (form.member) await api(`/members/${form.member.id}`, { method: 'PUT', body: data });
     else await api('/members', { method: 'POST', body: data });
     closeForm();
     await load();
-  }
-
-  function closeForm() {
-    setShowForm(false);
-    setEditing(null);
   }
 
   function handleDelete(m) {
@@ -52,86 +49,82 @@ export default function Members({ status }) {
 
   const q = search.trim().toLowerCase();
   const shown = (members || []).filter((m) => !q || m.name.toLowerCase().includes(q) || m.phone.includes(q));
+  const count = members ? `${members.length} member${members.length === 1 ? '' : 's'}` : '';
 
   return (
-    <div style={page}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2 style={{ margin: 0, color: '#1a1a2e' }}>Members</h2>
-        {!showForm && (
-          <button onClick={() => { setEditing(null); setShowForm(true); }} style={button()}>
-            + Add Member
-          </button>
+    <div className="page">
+      <PageHead title="Members" subtitle={count}>
+        {members && members.length > 0 && (
+          <div className="search">
+            <Icon name="search" size={16} />
+            <input
+              type="search"
+              className="input"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name or phone"
+              aria-label="Search members"
+            />
+          </div>
         )}
-      </div>
+        <button className="btn" onClick={() => setForm({ member: null })}>
+          <Icon name="plus" />
+          Add member
+        </button>
+      </PageHead>
 
-      {error && <div style={errorBox}>{error}</div>}
+      <Alert>{error}</Alert>
 
-      {showForm && (
+      {form && (
         <MemberForm
-          key={editing?.id ?? 'new'}
+          key={form.member?.id ?? 'new'}
           onSubmit={handleSubmit}
           onCancel={closeForm}
-          initialData={editing}
+          initialData={form.member}
           whatsappConnected={!!status?.connected}
         />
       )}
 
-      {members && members.length > 5 && (
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or phone…"
-          style={{ ...input, maxWidth: '320px' }}
-        />
-      )}
-
-      <div style={card}>
+      <div className="card">
         {members === null ? (
-          <p style={empty}>Loading…</p>
+          <div className="empty">Loading…</div>
         ) : members.length === 0 ? (
-          <p style={empty}>No members yet. Click "Add Member" to get started.</p>
+          <Empty icon="users" title="No members yet">
+            Add your first member and GymPing will remind them before their membership ends.
+          </Empty>
         ) : shown.length === 0 ? (
-          <p style={empty}>No members match your search.</p>
+          <Empty icon="search" title="No members match your search" />
         ) : (
-          <table style={table}>
-            <thead>
-              <tr>
-                <th style={th}>Name</th>
-                <th style={th}>Phone</th>
-                <th style={th}>Membership Ends</th>
-                <th style={th}>Time Left</th>
-                <th style={th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((m) => (
-                <tr key={m.id} style={{ background: rowColor(m.days_remaining) }}>
-                  <td style={td}>{m.name}</td>
-                  <td style={td}>{m.phone}</td>
-                  <td style={td}>{formatDate(m.membership_end_date)}</td>
-                  <td style={td}>{daysLabel(m.days_remaining)}</td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                    <button
-                      onClick={() => act(() => api(`/members/${m.id}/renew`, { method: 'POST' }))}
-                      style={{ ...button(colors.green, true), marginRight: '0.5rem' }}
-                    >
-                      ✓ Renewed
-                    </button>
-                    <button
-                      onClick={() => { setEditing(m); setShowForm(true); window.scrollTo(0, 0); }}
-                      style={{ ...button(colors.blue, true), marginRight: '0.5rem' }}
-                    >
-                      Edit
-                    </button>
-                    <button onClick={() => handleDelete(m)} style={button(colors.red, true)}>
-                      Delete
-                    </button>
-                  </td>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Membership ends</th>
+                  <th>Time left</th>
+                  <th><span style={{ position: 'absolute', left: -9999 }}>Actions</span></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {shown.map((m) => (
+                  <tr key={m.id}>
+                    <td><Person name={m.name} sub={m.phone} /></td>
+                    <td className="nowrap">{formatDate(m.membership_end_date)}</td>
+                    <td><DaysBadge days={m.days_remaining} /></td>
+                    <td className="actions">
+                      <RenewButton onClick={() => act(() => api(`/members/${m.id}/renew`, { method: 'POST' }))} />
+                      <button className="btn ghost" onClick={() => setForm({ member: m })} aria-label={`Edit ${m.name}`} title="Edit">
+                        <Icon name="pencil" size={16} />
+                      </button>
+                      <button className="btn ghost danger-hover" onClick={() => handleDelete(m)} aria-label={`Delete ${m.name}`} title="Delete">
+                        <Icon name="trash" size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
