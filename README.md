@@ -54,7 +54,7 @@ Activity and errors are written to `backend/gymping.log`.
 
 ## Opening it from another device
 
-By default GymPing can only be opened on the computer it runs on. To open it from your phone or another computer on the same network, start it with a password:
+By default GymPing can only be opened on the computer it runs on. To open it from your phone or another computer on the same network, start it with a password (leaving the password out works too, but then anyone on the network can use it):
 
 ```bash
 HOST=0.0.0.0 GYMPING_PASSWORD=choose-a-password npm start
@@ -66,8 +66,10 @@ One hosted copy serves one gym. Render's free plan has no lasting disk, so GymPi
 
 1. **Create the database.** Sign up at [Neon](https://neon.tech) (free), create a project, and copy its connection string (it starts with `postgresql://`). Don't use Render's own free database: it is deleted after 30 days.
 2. **Set your time zone.** In `render.yaml`, change `TZ` to your gym's time zone, then commit and push.
-3. **Create the app.** On [Render](https://render.com): New → Blueprint → pick this repo. When asked, enter `GYMPING_PASSWORD` (the password you will log in with) and `DATABASE_URL` (the connection string from step 1).
-4. **Link WhatsApp.** Open the `…onrender.com` address, enter your password, and scan the QR code in Settings. Keep the page open for two minutes afterwards: the link is saved to the database about a minute after connecting.
+3. **Create the app.** On [Render](https://render.com): New → Blueprint → pick this repo. When asked, enter `DATABASE_URL` (the connection string from step 1).
+4. **Link WhatsApp.** Open the `…onrender.com` address and scan the QR code in Settings. Keep the page open for two minutes afterwards: the link is saved to the database about a minute after connecting.
+
+**There is no login by default**, so anyone who has the address can see your members and send messages. To require a password, add `GYMPING_PASSWORD` under Environment in Render.
 
 Limits of the free plan:
 
@@ -83,7 +85,7 @@ Other hosts: the same `Dockerfile` runs anywhere that runs containers. `fly.toml
 |---|---|---|
 | `PORT` | Port the app runs on | `3001` |
 | `HOST` | Address to listen on | `127.0.0.1` |
-| `GYMPING_PASSWORD` | Password for the app (required if `HOST` is not local) | none |
+| `GYMPING_PASSWORD` | Password for the app (recommended whenever `HOST` is not local) | none |
 | `GYMPING_DB` | Where the data file is kept | `backend/gymping.db` |
 | `DATABASE_URL` | Postgres database to use instead of the local data file (for hosts without a disk) | none |
 | `GYMPING_DATA_DIR` | Folder for the data file and WhatsApp session (hosted copies) | `backend/` |

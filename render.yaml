@@ -17,8 +17,8 @@ services:
       # Leaves most of the small free server's memory for the WhatsApp browser.
       - key: NODE_OPTIONS
         value: --max-old-space-size=160
-      # Render asks you for these two when you create the service.
-      - key: GYMPING_PASSWORD
-        sync: false
+      # Render asks you for this when you create the service.
       - key: DATABASE_URL
         sync: false
+      # No login by default: anyone with the address can use this GymPing.
+      # To require a password, add GYMPING_PASSWORD in Render's Environment settings.

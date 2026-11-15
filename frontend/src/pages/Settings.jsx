@@ -126,6 +126,12 @@ export default function Settings({ status }) {
     <div className="page">
       <PageHead title="Settings" subtitle="Your gym, your message, your WhatsApp link" />
       <Alert>{error}</Alert>
+      {status?.open && (
+        <Alert tone="amber">
+          This GymPing has no password, so anyone with its address can see your members and send
+          messages. To add one, set GYMPING_PASSWORD where it is hosted.
+        </Alert>
+      )}
 
       <div className="settings-grid">
         <div>

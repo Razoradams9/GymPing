@@ -13,10 +13,9 @@ const PASSWORD = process.env.GYMPING_PASSWORD || '';
 
 const isLocalOnly = ['127.0.0.1', 'localhost', '::1'].includes(HOST);
 if (!isLocalOnly && !PASSWORD) {
-  console.error(
-    'Refusing to start: HOST makes GymPing reachable from other devices, so set GYMPING_PASSWORD too.'
+  console.warn(
+    'WARNING: GymPing is reachable from other devices with no password. Anyone with the address can see members and send messages. Set GYMPING_PASSWORD to require a login.'
   );
-  process.exit(1);
 }
 
 const app = express();
@@ -59,7 +58,7 @@ function parseMember(body) {
 // ---- WhatsApp ----
 
 app.get('/api/status', (req, res) => {
-  res.json({ ...wa.getStatus(), hosted: process.env.GYMPING_HOSTED === '1' });
+  res.json({ ...wa.getStatus(), hosted: process.env.GYMPING_HOSTED === '1', open: !isLocalOnly && !PASSWORD });
 });
 
 app.get(
