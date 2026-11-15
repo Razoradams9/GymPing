@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../components/Icon';
 import { Alert, PageHead } from '../components/ui';
+import { LinkSteps, QrCode } from '../components/ConnectWhatsApp';
 import { api } from '../api';
 
 const PLACEHOLDERS = ['{first_name}', '{name}', '{gym}', '{when}', '{date}', '{link}'];
@@ -39,23 +40,11 @@ function WhatsAppCard({ status, onUnlink }) {
             </div>
           </div>
         </>
-      ) : status?.qr ? (
-        <>
-          <p className="sub">Scan this code once to link your number.</p>
-          <img src={status.qr} alt="WhatsApp QR code" className="qr" />
-          <ol className="steps">
-            <li>Open WhatsApp on your phone</li>
-            <li>Settings → Linked Devices → Link a Device</li>
-            <li>Point your phone at this code</li>
-          </ol>
-        </>
       ) : (
         <>
-          <p className="sub">Getting a QR code from WhatsApp. This can take a minute or two.</p>
-          <div className="connected">
-            <div className="spinner" />
-            <span>Connecting…</span>
-          </div>
+          <p className="sub">Scan this code once to link your number.</p>
+          <QrCode status={status} />
+          <LinkSteps />
         </>
       )}
     </div>

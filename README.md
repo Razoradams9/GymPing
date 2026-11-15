@@ -35,8 +35,8 @@ This starts GymPing in the background and opens [http://localhost:3001](http://l
 
 ## First use
 
-1. Go to **Settings**. A QR code appears. On your phone open WhatsApp → Settings → Linked Devices → Link a Device, and scan it. You only do this once.
-2. Still in Settings, enter your gym name and your payment link, then **Save Settings**.
+1. The first time you open GymPing it shows a **Connect your WhatsApp** screen with a QR code. On your phone open WhatsApp → Settings → Linked Devices → Link a Device, and scan it. You only do this once.
+2. In **Settings**, enter your gym name and your payment link, then **Save Settings**.
 3. Go to **Members** and add your members. Phone numbers need the country code, e.g. `+14155552671`.
 
 > Use a dedicated gym WhatsApp number if you can. GymPing sends messages slowly (20–60 seconds apart) to look natural, but WhatsApp can restrict numbers that send automated messages.

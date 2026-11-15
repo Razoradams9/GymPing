@@ -236,8 +236,26 @@ textarea.input { resize: vertical; min-height: 96px; }
 
 .settings-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .qr { display: block; width: 220px; height: 220px; border-radius: 12px; border: 1px solid var(--border); background: #fff; padding: 8px; margin: 14px auto; }
+.qr-wait { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #64748b; font-size: 0.87rem; }
 .steps { margin: 0; padding-left: 20px; color: var(--muted); }
-.steps li { margin-bottom: 4px; }
+.steps li { margin-bottom: 8px; padding-left: 4px; }
+.steps strong { color: var(--text); }
+
+/* ---- First-run WhatsApp connect screen ---- */
+
+.connect { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.connect-card { width: 100%; max-width: 760px; margin: 0; padding: 28px 32px; }
+.connect .brand { color: var(--text); padding: 0 0 22px; }
+.connect-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: center; }
+.connect-body h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 6px; }
+.connect-body .sub { color: var(--muted); margin-bottom: 20px; }
+.connect-body .qr { width: 248px; height: 248px; margin: 0; }
+.connect-skip { display: block; margin: 24px auto 0; color: var(--muted); font-weight: 500; }
+
+@media (max-width: 700px) {
+  .connect-card { padding: 22px 20px; }
+  .connect-body { grid-template-columns: 1fr; justify-items: center; gap: 22px; }
+}
 .connected { display: flex; align-items: center; gap: 12px; }
 .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex: none; }
 @keyframes spin { to { transform: rotate(360deg); } }

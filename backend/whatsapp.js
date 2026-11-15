@@ -51,7 +51,17 @@ function restart(delayMs) {
 
 function start() {
   if (fake) {
-    setTimeout(setConnected, 100);
+    // GYMPING_FAKE_QR_MS shows a pretend QR code for that long first, to try the connect screen.
+    const qrMs = Number(process.env.GYMPING_FAKE_QR_MS) || 0;
+    if (qrMs) {
+      require('qrcode')
+        .toDataURL('GymPing demo')
+        .then((url) => {
+          currentQR = url;
+          state = 'qr';
+        });
+    }
+    setTimeout(setConnected, qrMs + 100);
     return;
   }
 

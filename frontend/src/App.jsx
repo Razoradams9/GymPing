@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom';
 import Icon from './components/Icon';
+import ConnectScreen from './components/ConnectWhatsApp';
 import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
 import Settings from './pages/Settings';
@@ -74,17 +75,34 @@ function Sidebar({ status }) {
 export default function App() {
   const [locked, setLocked] = useState(false);
   const [status, setStatus] = useState(null);
+  const [skipped, setSkipped] = useState(() => {
+    try {
+      return sessionStorage.getItem('gymping-skip-connect') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  function skipConnect() {
+    try {
+      sessionStorage.setItem('gymping-skip-connect', '1');
+    } catch {
+      /* private window: only skipped until the page reloads */
+    }
+    setSkipped(true);
+  }
 
   useEffect(() => {
     setUnauthorizedHandler(() => setLocked(true));
     if (locked) return undefined;
     const load = () => api('/status').then(setStatus).catch(() => {});
     load();
-    const timer = setInterval(load, 5000);
+    const timer = setInterval(load, 3000);
     return () => clearInterval(timer);
   }, [locked]);
 
   if (locked) return <Login onDone={() => setLocked(false)} />;
+  if (status && !status.connected && !skipped) return <ConnectScreen status={status} onSkip={skipConnect} />;
 
   return (
     <BrowserRouter>
