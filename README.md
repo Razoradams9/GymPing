@@ -72,6 +72,7 @@ HOST=0.0.0.0 GYMPING_PASSWORD=choose-a-password npm start
 | `HOST` | Address to listen on | `127.0.0.1` |
 | `GYMPING_PASSWORD` | Password for the app (required if `HOST` is not local) | none |
 | `GYMPING_DB` | Where the data file is kept | `backend/gymping.db` |
+| `GYMPING_SHOW_BROWSER` | Set to `1` to show the WhatsApp Web window, for troubleshooting | off |
 | `GYMPING_FAKE_WA` | Set to `1` to try the app without WhatsApp; nothing is sent | off |
 
 Your data lives in `backend/gymping.db` and the WhatsApp session in `backend/.wwebjs_auth/`. Back up both.

@@ -54,7 +54,13 @@ function start() {
 
   const c = new Client({
     authStrategy: new LocalAuth(),
-    puppeteer: { args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+    // WhatsApp Web can take well over the library's 30s default to load on a slow PC or connection.
+    authTimeoutMs: 120000,
+    puppeteer: {
+      // GYMPING_SHOW_BROWSER=1 opens the WhatsApp Web window, to see what it is stuck on.
+      headless: process.env.GYMPING_SHOW_BROWSER !== '1',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    }
   });
   client = c;
 
@@ -84,7 +90,8 @@ function start() {
   });
 
   c.initialize().catch((err) => {
-    console.error('WhatsApp failed to start, retrying in 30s:', err.message);
+    // The library throws plain strings for some failures, so don't rely on err.message.
+    console.error('WhatsApp failed to start, retrying in 30s:', (err && err.message) || err);
     state = 'disconnected';
     if (client === c) restart(30000);
   });
