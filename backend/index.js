@@ -24,6 +24,10 @@ app.use(express.json());
 
 // Optional password, required when the app is reachable from other devices.
 app.use('/api', (req, res, next) => {
+  // Changes must come from the GymPing page itself, not from another website open in the browser.
+  if (req.method !== 'GET' && req.get('x-gymping-password') === undefined) {
+    return res.status(403).json({ error: 'Not allowed' });
+  }
   if (!PASSWORD) return next();
   const given = crypto.createHash('sha256').update(String(req.get('x-gymping-password') || '')).digest();
   const expected = crypto.createHash('sha256').update(PASSWORD).digest();
@@ -176,6 +180,23 @@ app.post(
   })
 );
 
+// ---- Turning GymPing off ----
+
+async function shutdown() {
+  console.log('GymPing is shutting down.');
+  setTimeout(() => process.exit(0), 8000).unref(); // don't hang if the browser won't close
+  await wa.stop();
+  process.exit(0);
+}
+
+app.post('/api/shutdown', (req, res) => {
+  res.json({ success: true });
+  shutdown();
+});
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
 // ---- Dashboard app (after `npm run build` in frontend) ----
 
 const dist = path.join(__dirname, '..', 'frontend', 'dist');
@@ -197,7 +218,15 @@ const tick = () => rem.runReminders().catch((err) => console.error('Reminder run
 cron.schedule('*/10 * * * *', tick);
 wa.onReady(tick);
 
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
   console.log(`GymPing running at http://${isLocalOnly ? 'localhost' : HOST}:${PORT}`);
   wa.start();
+});
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`GymPing is already running (port ${PORT} is in use). Open http://localhost:${PORT}`);
+  } else {
+    console.error(err.message);
+  }
+  process.exit(1);
 });

@@ -14,15 +14,24 @@ GymPing sends WhatsApp reminders to gym members whose membership is about to exp
 
 You need [Node.js 22.5 or newer](https://nodejs.org/).
 
+### Windows (no terminal needed)
+
+1. Double-click **Setup GymPing**. It installs everything, puts a **GymPing** icon on your Desktop, and opens GymPing in your browser.
+2. From then on, double-click the **GymPing** Desktop icon to open it.
+
+GymPing runs in the background with no window to keep open, and starts by itself when the computer is turned on. To turn it off, use **Turn GymPing off** in Settings or double-click **Stop GymPing**.
+
+### Mac / Linux
+
 ```bash
 npm run setup
 ```
 
 ```bash
-npm start
+node backend/launch.js
 ```
 
-Then open [http://localhost:3001](http://localhost:3001).
+This starts GymPing in the background and opens [http://localhost:3001](http://localhost:3001). Stop it with `node backend/launch.js --stop`.
 
 ## First use
 
@@ -34,27 +43,14 @@ Then open [http://localhost:3001](http://localhost:3001).
 
 ## Keeping it running 24/7
 
-GymPing only sends reminders while it is running. To keep it running, and restart it automatically after a crash or reboot, use [pm2](https://pm2.keymetrics.io/):
+GymPing only sends reminders while it is running, so leave the computer on.
 
-```bash
-npm install -g pm2
-```
+- **Windows:** Setup already makes GymPing start with the computer. To undo that, run `node backend/launch.js --uninstall`.
+- **Mac / Linux:** use [pm2](https://pm2.keymetrics.io/): `pm2 start backend/index.js --name gymping`, then `pm2 save` and `pm2 startup`.
 
-```bash
-pm2 start backend/index.js --name gymping
-```
+If WhatsApp ever logs the session out, the top bar turns red. Click **Connect WhatsApp** and scan the new QR code.
 
-```bash
-pm2 save
-```
-
-```bash
-pm2 startup
-```
-
-The last command prints one more command to run so GymPing starts when the computer boots.
-
-If WhatsApp ever logs the session out, the dashboard shows a red warning. Open Settings and scan the new QR code.
+Activity and errors are written to `backend/gymping.log`.
 
 ## Opening it from another device
 

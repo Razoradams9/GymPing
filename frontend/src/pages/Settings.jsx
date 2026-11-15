@@ -25,6 +25,7 @@ export default function Settings({ status }) {
   const [form, setForm] = useState(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [off, setOff] = useState(false);
 
   useEffect(() => {
     api('/settings').then(setForm).catch((err) => setError(err.message));
@@ -49,6 +50,16 @@ export default function Settings({ status }) {
     }
   }
 
+  async function turnOff() {
+    if (!window.confirm('Turn GymPing off? No reminders are sent until you start it again.')) return;
+    try {
+      await api('/shutdown', { method: 'POST' });
+      setOff(true);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function disconnect() {
     if (!window.confirm('Unlink this WhatsApp number? Reminders stop until you scan a new QR code.')) return;
     try {
@@ -56,6 +67,19 @@ export default function Settings({ status }) {
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  if (off) {
+    return (
+      <div style={{ ...page, maxWidth: '680px' }}>
+        <div style={box}>
+          <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>GymPing is turned off</h3>
+          <p style={{ color: '#555', marginBottom: 0 }}>
+            You can close this tab. Use the GymPing icon to start it again.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -155,6 +179,14 @@ export default function Settings({ status }) {
           {saved && <span style={{ marginLeft: '1rem', color: colors.green, fontWeight: 600 }}>✅ Saved!</span>}
         </form>
       )}
+
+      <div style={{ ...box, marginTop: '1.5rem' }}>
+        <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>Turn Off</h3>
+        <p style={{ color: '#555', marginTop: 0 }}>
+          GymPing keeps running in the background, even with this tab closed, so reminders go out on time.
+        </p>
+        <button type="button" onClick={turnOff} style={button(colors.grey)}>Turn GymPing off</button>
+      </div>
     </div>
   );
 }

@@ -144,4 +144,12 @@ async function logout() {
   if (client === c) restart(2000);
 }
 
-module.exports = { start, onReady, getStatus, isConnected, sendMessage, getContacts, logout };
+// Closes the hidden browser so nothing is left running after GymPing stops.
+async function stop() {
+  const c = client;
+  client = null;
+  state = 'disconnected';
+  if (c) await c.destroy().catch(() => {});
+}
+
+module.exports = { start, stop, onReady, getStatus, isConnected, sendMessage, getContacts, logout };
