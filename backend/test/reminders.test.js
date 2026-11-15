@@ -15,6 +15,7 @@ const rem = require('../reminders');
 const today = rem.localDate();
 
 test.before(async () => {
+  await db.init();
   wa.start();
   await new Promise((resolve) => wa.onReady(resolve));
 });
@@ -47,32 +48,34 @@ test('message wording', () => {
 });
 
 test('one reminder per member per day, only inside the 4-day window', async () => {
-  const inWindow = db.addMember('In Window', '+14155550101', rem.addDays(today, 4));
-  const lastDay = db.addMember('Last Day', '+14155550102', today);
-  const tooEarly = db.addMember('Too Early', '+14155550103', rem.addDays(today, 5));
-  const expired = db.addMember('Expired', '+14155550104', rem.addDays(today, -1));
+  const inWindow = await db.addMember('In Window', '+14155550101', rem.addDays(today, 4));
+  const lastDay = await db.addMember('Last Day', '+14155550102', today);
+  const tooEarly = await db.addMember('Too Early', '+14155550103', rem.addDays(today, 5));
+  const expired = await db.addMember('Expired', '+14155550104', rem.addDays(today, -1));
 
   assert.deepEqual(await rem.runReminders({ manual: true }), { sent: 2, failed: 0 });
-  assert.equal(db.getReminder(inWindow.id, today).status, 'sent');
-  assert.equal(db.getReminder(lastDay.id, today).status, 'sent');
-  assert.equal(db.getReminder(tooEarly.id, today), undefined);
-  assert.equal(db.getReminder(expired.id, today), undefined);
+  assert.equal((await db.getReminder(inWindow.id, today)).status, 'sent');
+  assert.equal((await db.getReminder(lastDay.id, today)).status, 'sent');
+  assert.equal((await db.getReminder(tooEarly.id, today)), undefined);
+  assert.equal((await db.getReminder(expired.id, today)), undefined);
 
   // Running again the same day sends nothing more.
   assert.deepEqual(await rem.runReminders({ manual: true }), { sent: 0, failed: 0 });
 });
 
 test('failed sends are logged, retried, and fixed by correcting the number', async () => {
-  const bad = db.addMember('Bad Number', '+14155550000', rem.addDays(today, 2));
+  const bad = await db.addMember('Bad Number', '+14155550000', rem.addDays(today, 2));
   assert.deepEqual(await rem.runReminders({ manual: true }), { sent: 0, failed: 1 });
-  let r = db.getReminder(bad.id, today);
+  let r = await db.getReminder(bad.id, today);
   assert.equal(r.status, 'failed');
   assert.match(r.error, /not on WhatsApp/);
 
-  db.updateMember(bad.id, bad.name, '+14155550105', bad.membership_end_date);
+  await db.updateMember(bad.id, bad.name, '+14155550105', bad.membership_end_date);
   assert.deepEqual(await rem.runReminders({ manual: true }), { sent: 1, failed: 0 });
-  r = db.getReminder(bad.id, today);
+  r = await db.getReminder(bad.id, today);
   assert.equal(r.status, 'sent');
   assert.equal(r.attempts, 2);
   assert.equal(r.error, null);
 });
+
+test.after(() => db.close());

@@ -60,41 +60,22 @@ By default GymPing can only be opened on the computer it runs on. To open it fro
 HOST=0.0.0.0 GYMPING_PASSWORD=choose-a-password npm start
 ```
 
-## Hosting it online (Fly.io + Vercel)
+## Hosting it online (Render, free plan)
 
-The backend runs on [Fly.io](https://fly.io) (paid, a few dollars a month for the 1 GB machine it needs) and the dashboard on [Vercel](https://vercel.com). One hosted copy serves one gym.
+One hosted copy serves one gym. Render's free plan has no lasting disk, so GymPing keeps its data and the WhatsApp link in a free online Postgres database instead.
 
-**Backend on Fly.io** — install [flyctl](https://fly.io/docs/flyctl/install/), then in the `GymPing` folder:
+1. **Create the database.** Sign up at [Neon](https://neon.tech) (free), create a project, and copy its connection string (it starts with `postgresql://`). Don't use Render's own free database: it is deleted after 30 days.
+2. **Set your time zone.** In `render.yaml`, change `TZ` to your gym's time zone, then commit and push.
+3. **Create the app.** On [Render](https://render.com): New → Blueprint → pick this repo. When asked, enter `GYMPING_PASSWORD` (the password you will log in with) and `DATABASE_URL` (the connection string from step 1).
+4. **Link WhatsApp.** Open the `…onrender.com` address, enter your password, and scan the QR code in Settings. Keep the page open for two minutes afterwards: the link is saved to the database about a minute after connecting.
 
-```bash
-fly auth login
-```
+Limits of the free plan:
 
-```bash
-fly launch --no-deploy --copy-config
-```
+- **Memory is tight** (512 MB for a browser that prefers 1 GB). If WhatsApp keeps disconnecting or the app keeps restarting, it needs Render's paid plan or another host.
+- **It sleeps without visitors.** GymPing visits its own address every 10 minutes to stay awake. For a second safety net, point a free uptime monitor (e.g. UptimeRobot) at `https://YOUR-APP.onrender.com/healthz`.
+- **Restarts happen.** After one, GymPing restores the WhatsApp link from the database and catches up on any reminders it missed.
 
-Pick an app name and region when asked. Open `fly.toml` and set `TZ` to your gym's time zone. Then create the disk (same region), set the password you will log in with, and deploy:
-
-```bash
-fly volumes create gymping_data --size 1
-```
-
-```bash
-fly secrets set GYMPING_PASSWORD=choose-a-password
-```
-
-```bash
-fly deploy
-```
-
-**Dashboard on Vercel**
-
-1. In `frontend/vercel.json`, replace `CHANGE-ME-gymping` with your Fly app name, then commit and push.
-2. On Vercel, import the GitHub repo and set **Root Directory** to `frontend`. Deploy.
-3. Open the Vercel address, enter your password, and scan the QR code in Settings.
-
-Keep it to one Fly machine (`fly scale count 1`); two would fight over the same WhatsApp link.
+Other hosts: the same `Dockerfile` runs anywhere that runs containers. `fly.toml` is a ready setup for Fly.io (paid) with a disk instead of a database. To serve the dashboard from Vercel instead, set the app address in `frontend/vercel.json` and use `frontend` as the root directory.
 
 ## Options
 
@@ -104,6 +85,7 @@ Keep it to one Fly machine (`fly scale count 1`); two would fight over the same 
 | `HOST` | Address to listen on | `127.0.0.1` |
 | `GYMPING_PASSWORD` | Password for the app (required if `HOST` is not local) | none |
 | `GYMPING_DB` | Where the data file is kept | `backend/gymping.db` |
+| `DATABASE_URL` | Postgres database to use instead of the local data file (for hosts without a disk) | none |
 | `GYMPING_DATA_DIR` | Folder for the data file and WhatsApp session (hosted copies) | `backend/` |
 | `TZ` | Time zone used for send times and dates | the computer's |
 | `GYMPING_SHOW_BROWSER` | Set to `1` to show the WhatsApp Web window, for troubleshooting | off |

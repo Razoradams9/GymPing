@@ -83,15 +83,15 @@ function sendGapMs() {
 }
 
 async function sendReminder(member, today) {
-  const settings = db.getSettings();
+  const settings = await db.getSettings();
   const message = buildMessage(settings.message_template, member, settings, today);
   try {
     await wa.sendMessage(member.phone, message);
     console.log(`Reminder sent to ${member.name} (${member.phone})`);
-    return db.recordReminder(member, today, 'sent', message, null);
+    return await db.recordReminder(member, today, 'sent', message, null);
   } catch (err) {
     console.error(`Reminder to ${member.name} failed: ${err.message}`);
-    return db.recordReminder(member, today, 'failed', message, err.message);
+    return await db.recordReminder(member, today, 'failed', message, (err && err.message) || String(err));
   }
 }
 
@@ -106,7 +106,7 @@ async function runReminders({ manual = false } = {}) {
   if (!wa.isConnected()) return { skipped: 'WhatsApp is not connected' };
 
   const now = new Date();
-  const { send_hour } = db.getSettings();
+  const { send_hour } = await db.getSettings();
   if (!manual && (now.getHours() < send_hour || now.getHours() >= QUIET_HOUR)) {
     return { skipped: 'Outside sending hours' };
   }
@@ -115,16 +115,17 @@ async function runReminders({ manual = false } = {}) {
   const result = { sent: 0, failed: 0 };
   try {
     const today = localDate(now);
-    const due = db.getMembersExpiringBetween(today, addDays(today, WINDOW_DAYS)).filter((m) => {
-      const r = db.getReminder(m.id, today);
-      return !r || (r.status === 'failed' && (manual || r.attempts < MAX_AUTO_ATTEMPTS));
-    });
+    const due = [];
+    for (const m of await db.getMembersExpiringBetween(today, addDays(today, WINDOW_DAYS))) {
+      const r = await db.getReminder(m.id, today);
+      if (!r || (r.status === 'failed' && (manual || r.attempts < MAX_AUTO_ATTEMPTS))) due.push(m);
+    }
 
     for (let i = 0; i < due.length; i++) {
       if (i > 0) await sleep(sendGapMs());
       if (!wa.isConnected()) break; // the rest go out once WhatsApp is back
       // The member may have been renewed, edited or removed while we waited.
-      const member = db.getMemberById(due[i].id);
+      const member = await db.getMemberById(due[i].id);
       if (!member) continue;
       const days = daysBetween(today, member.membership_end_date);
       if (days < 0 || days > WINDOW_DAYS) continue;

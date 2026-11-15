@@ -1,6 +1,6 @@
 .git
 **/node_modules
-frontend
+frontend/dist
 **/*.db
 **/*.db-shm
 **/*.db-wal

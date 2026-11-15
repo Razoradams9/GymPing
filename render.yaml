@@ -1,0 +1,24 @@
+# Render settings for GymPing (free plan). Render reads this when you create a "Blueprint".
+services:
+  - type: web
+    name: gymping
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: GYMPING_HOSTED
+        value: "1"
+      # Your gym's time zone, so "9 AM" and "4 days before" mean your local time.
+      # Names: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      - key: TZ
+        value: America/New_York
+      # Leaves most of the small free server's memory for the WhatsApp browser.
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=160
+      # Render asks you for these two when you create the service.
+      - key: GYMPING_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        sync: false

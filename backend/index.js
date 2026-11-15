@@ -80,52 +80,59 @@ app.post(
 
 // ---- Members ----
 
-app.get('/api/members', (req, res) => {
-  const today = rem.localDate();
-  res.json(db.getAllMembers().map((m) => withDays(m, today)));
-});
+app.get(
+  '/api/members',
+  wrap(async (req, res) => {
+    const today = rem.localDate();
+    res.json((await db.getAllMembers()).map((m) => withDays(m, today)));
+  })
+);
 
-app.post('/api/members', (req, res) => {
-  const { error, value } = parseMember(req.body);
-  if (error) return res.status(400).json({ error });
-  res.status(201).json(withDays(db.addMember(value.name, value.phone, value.membership_end_date)));
-});
+app.post(
+  '/api/members',
+  wrap(async (req, res) => {
+    const { error, value } = parseMember(req.body);
+    if (error) return res.status(400).json({ error });
+    const member = await db.addMember(value.name, value.phone, value.membership_end_date);
+    res.status(201).json(withDays(member));
+  })
+);
 
-app.put('/api/members/:id', (req, res) => {
-  const existing = db.getMemberById(req.params.id);
+app.put('/api/members/:id', wrap(async (req, res) => {
+  const existing = await db.getMemberById(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Member not found' });
   const { error, value } = parseMember(req.body);
   if (error) return res.status(400).json({ error });
   // Pushing the end date later is a renewal, however the owner does it.
   if (value.membership_end_date > existing.membership_end_date) {
-    db.logRenewal(existing, value.membership_end_date);
+    await db.logRenewal(existing, value.membership_end_date);
   }
-  res.json(withDays(db.updateMember(existing.id, value.name, value.phone, value.membership_end_date)));
-});
+  res.json(withDays(await db.updateMember(existing.id, value.name, value.phone, value.membership_end_date)));
+}));
 
-app.delete('/api/members/:id', (req, res) => {
-  db.deleteMember(req.params.id);
+app.delete('/api/members/:id', wrap(async (req, res) => {
+  await db.deleteMember(req.params.id);
   res.json({ success: true });
-});
+}));
 
 // "Renewed" button: extends from the current end date, or from today if already expired.
-app.post('/api/members/:id/renew', (req, res) => {
-  const member = db.getMemberById(req.params.id);
+app.post('/api/members/:id/renew', wrap(async (req, res) => {
+  const member = await db.getMemberById(req.params.id);
   if (!member) return res.status(404).json({ error: 'Member not found' });
   const today = rem.localDate();
   const from = member.membership_end_date > today ? member.membership_end_date : today;
-  const newEnd = rem.addMonths(from, db.getSettings().renewal_months);
-  db.logRenewal(member, newEnd);
-  res.json(withDays(db.updateMember(member.id, member.name, member.phone, newEnd), today));
-});
+  const newEnd = rem.addMonths(from, (await db.getSettings()).renewal_months);
+  await db.logRenewal(member, newEnd);
+  res.json(withDays(await db.updateMember(member.id, member.name, member.phone, newEnd), today));
+}));
 
 // ---- Settings ----
 
-app.get('/api/settings', (req, res) => {
-  res.json({ ...db.getSettings(), default_template: db.DEFAULT_TEMPLATE });
-});
+app.get('/api/settings', wrap(async (req, res) => {
+  res.json({ ...(await db.getSettings()), default_template: db.DEFAULT_TEMPLATE });
+}));
 
-app.post('/api/settings', (req, res) => {
+app.post('/api/settings', wrap(async (req, res) => {
   const b = req.body;
   const payment_url = String(b.payment_url || '').trim();
   if (payment_url && !/^https?:\/\//i.test(payment_url)) {
@@ -139,7 +146,7 @@ app.post('/api/settings', (req, res) => {
   if (!Number.isInteger(renewal_months) || renewal_months < 1 || renewal_months > 36) {
     return res.status(400).json({ error: 'Renewal length must be 1 to 36 months' });
   }
-  const saved = db.saveSettings({
+  const saved = await db.saveSettings({
     gym_name: String(b.gym_name || '').trim() || 'My Gym',
     payment_url,
     message_template: String(b.message_template || '').trim() || null,
@@ -147,17 +154,17 @@ app.post('/api/settings', (req, res) => {
     renewal_months
   });
   res.json({ ...saved, default_template: db.DEFAULT_TEMPLATE });
-});
+}));
 
 // ---- Reminders & renewals ----
 
-app.get('/api/reminders', (req, res) => {
-  res.json({ today: rem.localDate(), reminders: db.getRecentReminders(100) });
-});
+app.get('/api/reminders', wrap(async (req, res) => {
+  res.json({ today: rem.localDate(), reminders: await db.getRecentReminders(100) });
+}));
 
-app.get('/api/renewals', (req, res) => {
-  res.json(db.getRecentRenewals(50));
-});
+app.get('/api/renewals', wrap(async (req, res) => {
+  res.json(await db.getRecentRenewals(50));
+}));
 
 // "Send now" button. Sends happen in the background (they are spaced out).
 app.post('/api/reminders/run', (req, res) => {
@@ -170,13 +177,13 @@ app.post('/api/reminders/run', (req, res) => {
 app.post(
   '/api/reminders/:id/retry',
   wrap(async (req, res) => {
-    const reminder = db.getReminderById(req.params.id);
+    const reminder = await db.getReminderById(req.params.id);
     if (!reminder) return res.status(404).json({ error: 'Reminder not found' });
     const today = rem.localDate();
     if (reminder.status === 'sent' || reminder.reminder_date !== today) {
       return res.status(409).json({ error: 'Only a reminder that failed today can be retried' });
     }
-    const member = db.getMemberById(reminder.member_id);
+    const member = await db.getMemberById(reminder.member_id);
     if (!member) return res.status(404).json({ error: 'This member was removed' });
     if (!wa.isConnected()) return res.status(409).json({ error: 'WhatsApp is not connected' });
     res.json(await rem.sendReminder(member, today));
@@ -221,15 +228,29 @@ const tick = () => rem.runReminders().catch((err) => console.error('Reminder run
 cron.schedule('*/10 * * * *', tick);
 wa.onReady(tick);
 
-const server = app.listen(PORT, HOST, () => {
-  console.log(`GymPing running at http://${isLocalOnly ? 'localhost' : HOST}:${PORT}`);
-  wa.start();
-});
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`GymPing is already running (port ${PORT} is in use). Open http://localhost:${PORT}`);
-  } else {
-    console.error(err.message);
-  }
-  process.exit(1);
-});
+// Render's free plan puts the app to sleep after 15 minutes without visitors,
+// which would stop reminders. Visiting our own address keeps it awake.
+if (process.env.RENDER_EXTERNAL_URL) {
+  const ping = () => fetch(`${process.env.RENDER_EXTERNAL_URL}/healthz`).catch(() => {});
+  setInterval(ping, 10 * 60 * 1000);
+}
+
+db.init()
+  .then(() => {
+    const server = app.listen(PORT, HOST, () => {
+      console.log(`GymPing running at http://${isLocalOnly ? 'localhost' : HOST}:${PORT}`);
+      wa.start();
+    });
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`GymPing is already running (port ${PORT} is in use). Open http://localhost:${PORT}`);
+      } else {
+        console.error(err.message);
+      }
+      process.exit(1);
+    });
+  })
+  .catch((err) => {
+    console.error('Could not open the database:', err.message);
+    process.exit(1);
+  });

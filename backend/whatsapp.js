@@ -8,6 +8,9 @@
 const fs = require('fs');
 const path = require('path');
 
+const os = require('os');
+const db = require('./db');
+
 const fake = process.env.GYMPING_FAKE_WA === '1';
 
 let state = 'starting'; // starting | qr | connected | disconnected
@@ -52,20 +55,39 @@ function start() {
     return;
   }
 
-  const { Client, LocalAuth } = require('whatsapp-web.js');
+  const { Client, LocalAuth, RemoteAuth } = require('whatsapp-web.js');
   const qrcode = require('qrcode');
 
-  // Keep the WhatsApp session on the persistent disk when hosted.
-  const dataPath = process.env.GYMPING_DATA_DIR
-    ? path.join(process.env.GYMPING_DATA_DIR, 'wwebjs_auth')
-    : undefined;
-  // After an abrupt restart the browser profile can still look "in use"; clear the stale locks.
-  for (const lock of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
-    fs.rmSync(path.join(dataPath || '.wwebjs_auth', 'session', lock), { force: true });
+  let authStrategy;
+  if (db.usePostgres) {
+    // No lasting disk: keep the WhatsApp link in the database and restore it on every start.
+    const dataPath = path.join(os.tmpdir(), 'gymping_wa');
+    fs.mkdirSync(dataPath, { recursive: true });
+    const zip = (session) => path.join(dataPath, `${session}.zip`);
+    authStrategy = new RemoteAuth({
+      dataPath,
+      backupSyncIntervalMs: 30 * 60 * 1000,
+      store: {
+        sessionExists: ({ session }) => db.hasSession(session),
+        save: async ({ session }) => db.saveSession(session, await fs.promises.readFile(zip(session))),
+        extract: async ({ session, path: out }) => fs.promises.writeFile(out, await db.loadSession(session)),
+        delete: ({ session }) => db.deleteSession(session)
+      }
+    });
+  } else {
+    // Keep the WhatsApp session on the persistent disk when hosted.
+    const dataPath = process.env.GYMPING_DATA_DIR
+      ? path.join(process.env.GYMPING_DATA_DIR, 'wwebjs_auth')
+      : undefined;
+    // After an abrupt restart the browser profile can still look "in use"; clear the stale locks.
+    for (const lock of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+      fs.rmSync(path.join(dataPath || '.wwebjs_auth', 'session', lock), { force: true });
+    }
+    authStrategy = new LocalAuth({ dataPath });
   }
 
   const c = new Client({
-    authStrategy: new LocalAuth({ dataPath }),
+    authStrategy,
     // WhatsApp Web can take well over the library's 30s default to load on a slow PC or connection.
     authTimeoutMs: 120000,
     puppeteer: {
@@ -73,7 +95,17 @@ function start() {
       headless: process.env.GYMPING_SHOW_BROWSER !== '1',
       // On a server, use the system browser named by PUPPETEER_EXECUTABLE_PATH.
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        // Keep memory low for small servers.
+        '--no-zygote',
+        '--disable-extensions',
+        '--mute-audio',
+        '--no-first-run'
+      ]
     }
   });
   client = c;
@@ -89,6 +121,7 @@ function start() {
   });
 
   c.on('ready', setConnected);
+  c.on('remote_session_saved', () => console.log('WhatsApp link saved to the database.'));
 
   c.on('auth_failure', (msg) => {
     console.error('WhatsApp sign-in failed:', msg);
