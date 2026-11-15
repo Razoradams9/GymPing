@@ -1,169 +1,130 @@
 import { useEffect, useState } from 'react';
 import MemberForm from '../components/MemberForm';
+import { api, daysLabel, formatDate } from '../api';
+import { button, card, colors, empty, errorBox, input, page, rowColor, table, td, th } from '../ui';
 
-const API = 'http://localhost:3001';
-
-export default function Members() {
-  const [members, setMembers] = useState([]);
+export default function Members({ status }) {
+  const [members, setMembers] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [editingMember, setEditingMember] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
 
-  async function fetchMembers() {
+  async function load() {
     try {
-      const res = await fetch(`${API}/api/members`);
-      const data = await res.json();
-      setMembers(data);
+      setMembers(await api('/members'));
     } catch (err) {
-      console.error('Failed to fetch members:', err);
+      setError(err.message);
     }
   }
 
   useEffect(() => {
-    fetchMembers();
+    load();
   }, []);
 
-  async function handleFormSubmit(data) {
+  async function act(fn) {
+    setError('');
     try {
-      if (editingMember) {
-        await fetch(`${API}/api/members/${editingMember.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-      } else {
-        await fetch(`${API}/api/members`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-      }
-      setShowForm(false);
-      setEditingMember(null);
-      fetchMembers();
+      await fn();
+      await load();
     } catch (err) {
-      console.error('Failed to save member:', err);
+      setError(err.message);
     }
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm('Delete this member?')) return;
-    try {
-      await fetch(`${API}/api/members/${id}`, { method: 'DELETE' });
-      fetchMembers();
-    } catch (err) {
-      console.error('Failed to delete member:', err);
-    }
+  // Errors are shown inside the form, so let them propagate.
+  async function handleSubmit(data) {
+    if (editing) await api(`/members/${editing.id}`, { method: 'PUT', body: data });
+    else await api('/members', { method: 'POST', body: data });
+    closeForm();
+    await load();
   }
 
-  function handleEdit(member) {
-    setEditingMember(member);
-    setShowForm(true);
-  }
-
-  function handleCancel() {
+  function closeForm() {
     setShowForm(false);
-    setEditingMember(null);
+    setEditing(null);
   }
 
-  function rowColor(days) {
-    if (days <= 4) return '#ffebee';
-    if (days <= 7) return '#fffde7';
-    return '#fff';
+  function handleDelete(m) {
+    if (!window.confirm(`Delete ${m.name}?`)) return;
+    act(() => api(`/members/${m.id}`, { method: 'DELETE' }));
   }
 
-  const thStyle = {
-    background: '#1a1a2e',
-    color: '#fff',
-    padding: '0.6rem 1rem',
-    textAlign: 'left'
-  };
-
-  const tdStyle = { padding: '0.6rem 1rem', borderBottom: '1px solid #eee' };
+  const q = search.trim().toLowerCase();
+  const shown = (members || []).filter((m) => !q || m.name.toLowerCase().includes(q) || m.phone.includes(q));
 
   return (
-    <div style={{ padding: '2rem', background: '#f5f5f5', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+    <div style={page}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h2 style={{ margin: 0, color: '#1a1a2e' }}>Members</h2>
         {!showForm && (
-          <button
-            onClick={() => { setEditingMember(null); setShowForm(true); }}
-            style={{
-              background: '#1a1a2e',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '0.6rem 1.4rem',
-              fontSize: '1rem',
-              cursor: 'pointer'
-            }}
-          >
+          <button onClick={() => { setEditing(null); setShowForm(true); }} style={button()}>
             + Add Member
           </button>
         )}
       </div>
 
+      {error && <div style={errorBox}>{error}</div>}
+
       {showForm && (
         <MemberForm
-          onSubmit={handleFormSubmit}
-          onCancel={handleCancel}
-          initialData={editingMember}
+          key={editing?.id ?? 'new'}
+          onSubmit={handleSubmit}
+          onCancel={closeForm}
+          initialData={editing}
+          whatsappConnected={!!status?.connected}
         />
       )}
 
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: '8px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-          overflow: 'hidden'
-        }}
-      >
-        {members.length === 0 ? (
-          <p style={{ padding: '1.5rem', color: '#888' }}>No members yet. Click "Add Member" to get started.</p>
+      {members && members.length > 5 && (
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or phone…"
+          style={{ ...input, maxWidth: '320px' }}
+        />
+      )}
+
+      <div style={card}>
+        {members === null ? (
+          <p style={empty}>Loading…</p>
+        ) : members.length === 0 ? (
+          <p style={empty}>No members yet. Click "Add Member" to get started.</p>
+        ) : shown.length === 0 ? (
+          <p style={empty}>No members match your search.</p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={table}>
             <thead>
               <tr>
-                <th style={thStyle}>Name</th>
-                <th style={thStyle}>Phone</th>
-                <th style={thStyle}>Membership End Date</th>
-                <th style={thStyle}>Days Remaining</th>
-                <th style={thStyle}>Actions</th>
+                <th style={th}>Name</th>
+                <th style={th}>Phone</th>
+                <th style={th}>Membership Ends</th>
+                <th style={th}>Time Left</th>
+                <th style={th}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {members.map((m) => (
+              {shown.map((m) => (
                 <tr key={m.id} style={{ background: rowColor(m.days_remaining) }}>
-                  <td style={tdStyle}>{m.name}</td>
-                  <td style={tdStyle}>{m.phone}</td>
-                  <td style={tdStyle}>{m.membership_end_date}</td>
-                  <td style={tdStyle}>{m.days_remaining}</td>
-                  <td style={tdStyle}>
+                  <td style={td}>{m.name}</td>
+                  <td style={td}>{m.phone}</td>
+                  <td style={td}>{formatDate(m.membership_end_date)}</td>
+                  <td style={td}>{daysLabel(m.days_remaining)}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>
                     <button
-                      onClick={() => handleEdit(m)}
-                      style={{
-                        background: '#1565c0',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '0.3rem 0.8rem',
-                        cursor: 'pointer',
-                        marginRight: '0.5rem'
-                      }}
+                      onClick={() => act(() => api(`/members/${m.id}/renew`, { method: 'POST' }))}
+                      style={{ ...button(colors.green, true), marginRight: '0.5rem' }}
+                    >
+                      ✓ Renewed
+                    </button>
+                    <button
+                      onClick={() => { setEditing(m); setShowForm(true); window.scrollTo(0, 0); }}
+                      style={{ ...button(colors.blue, true), marginRight: '0.5rem' }}
                     >
                       Edit
                     </button>
-                    <button
-                      onClick={() => handleDelete(m.id)}
-                      style={{
-                        background: '#c62828',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '0.3rem 0.8rem',
-                        cursor: 'pointer'
-                      }}
-                    >
+                    <button onClick={() => handleDelete(m)} style={button(colors.red, true)}>
                       Delete
                     </button>
                   </td>

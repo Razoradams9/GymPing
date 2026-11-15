@@ -1,170 +1,172 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '../api';
+import { button, card, colors, errorBox, hint, input, label, page } from '../ui';
 
-const API = 'http://localhost:3001';
+const box = { ...card, padding: '1.5rem 2rem' };
 
-export default function Settings() {
-  const [status, setStatus] = useState({ connected: false, qr: null });
-  const [gymName, setGymName] = useState('');
-  const [paymentUrl, setPaymentUrl] = useState('');
+function hourLabel(h) {
+  return `${h % 12 === 0 ? 12 : h % 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+function preview(template, s) {
+  const values = {
+    name: 'Sarah Khan',
+    first_name: 'Sarah',
+    gym: s.gym_name || 'the gym',
+    when: 'in 4 days',
+    days: '4',
+    date: 'Nov 19',
+    link: s.payment_url || ''
+  };
+  return template.replace(/\{(\w+)\}/g, (match, key) => (key in values ? values[key] : match));
+}
+
+export default function Settings({ status }) {
+  const [form, setForm] = useState(null);
   const [saved, setSaved] = useState(false);
-  const pollingRef = useRef(null);
-
-  async function fetchStatus() {
-    try {
-      const res = await fetch(`${API}/api/status`);
-      const data = await res.json();
-      setStatus(data);
-      if (data.connected) {
-        clearInterval(pollingRef.current);
-      }
-    } catch (err) {
-      console.error('Failed to fetch status:', err);
-    }
-  }
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchStatus();
-    pollingRef.current = setInterval(fetchStatus, 3000);
-    return () => clearInterval(pollingRef.current);
+    api('/settings').then(setForm).catch((err) => setError(err.message));
   }, []);
 
-  useEffect(() => {
-    if (status.connected) {
-      clearInterval(pollingRef.current);
-    }
-  }, [status.connected]);
+  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
-  useEffect(() => {
-    fetch(`${API}/api/settings`)
-      .then((r) => r.json())
-      .then((data) => {
-        setGymName(data.gym_name || '');
-        setPaymentUrl(data.payment_url || '');
-      })
-      .catch(console.error);
-  }, []);
-
-  async function handleSaveSettings(e) {
+  async function save(e) {
     e.preventDefault();
+    setError('');
     try {
-      await fetch(`${API}/api/settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gym_name: gymName, payment_url: paymentUrl })
-      });
+      setForm(
+        await api('/settings', {
+          method: 'POST',
+          body: { ...form, send_hour: Number(form.send_hour), renewal_months: Number(form.renewal_months) }
+        })
+      );
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      console.error('Failed to save settings:', err);
+      setError(err.message);
     }
   }
 
-  const cardStyle = {
-    background: '#fff',
-    borderRadius: '8px',
-    padding: '1.5rem 2rem',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-    marginBottom: '1.5rem'
-  };
-
-  const inputStyle = {
-    display: 'block',
-    width: '100%',
-    padding: '0.6rem 0.8rem',
-    marginTop: '0.3rem',
-    marginBottom: '1rem',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-    fontSize: '1rem',
-    boxSizing: 'border-box'
-  };
-
-  const labelStyle = { fontWeight: '600', color: '#333' };
+  async function disconnect() {
+    if (!window.confirm('Unlink this WhatsApp number? Reminders stop until you scan a new QR code.')) return;
+    try {
+      await api('/whatsapp/logout', { method: 'POST' });
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   return (
-    <div style={{ padding: '2rem', background: '#f5f5f5', minHeight: '100vh', maxWidth: '640px', margin: '0 auto' }}>
+    <div style={{ ...page, maxWidth: '680px' }}>
       <h2 style={{ color: '#1a1a2e', marginTop: 0 }}>Settings</h2>
+      {error && <div style={errorBox}>{error}</div>}
 
-      {/* WhatsApp Connection Card */}
-      <div style={cardStyle}>
+      <div style={box}>
         <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>WhatsApp Connection</h3>
-        {status.connected ? (
-          <div
-            style={{
-              display: 'inline-block',
-              background: '#e8f5e9',
-              color: '#2e7d32',
-              borderRadius: '6px',
-              padding: '0.6rem 1.2rem',
-              fontWeight: '600',
-              fontSize: '1rem'
-            }}
-          >
-            ✅ WhatsApp Connected
+        {status?.connected ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+            <span style={{ background: '#e8f5e9', color: colors.green, borderRadius: '6px', padding: '0.6rem 1.2rem', fontWeight: 600 }}>
+              ✅ WhatsApp Connected
+            </span>
+            <button onClick={disconnect} style={button(colors.grey, true)}>Unlink this number</button>
           </div>
-        ) : status.qr ? (
+        ) : status?.qr ? (
           <div>
             <p style={{ color: '#555', marginTop: 0 }}>
-              Scan this QR code with WhatsApp on your phone
+              On your phone: WhatsApp → Settings → Linked Devices → Link a Device, then scan this code.
             </p>
             <img
               src={status.qr}
-              alt="WhatsApp QR Code"
+              alt="WhatsApp QR code"
               style={{ display: 'block', width: '240px', height: '240px', borderRadius: '8px', border: '1px solid #eee' }}
             />
-            <p style={{ color: '#888', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-              Waiting for scan… checking every 3 seconds.
-            </p>
+            <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: 0 }}>Waiting for scan…</p>
           </div>
         ) : (
-          <p style={{ color: '#888' }}>Connecting to WhatsApp… QR code will appear shortly.</p>
+          <p style={{ color: '#888', margin: 0 }}>Connecting to WhatsApp… a QR code will appear shortly.</p>
         )}
       </div>
 
-      {/* Gym Settings Card */}
-      <div style={cardStyle}>
-        <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>Gym Settings</h3>
-        <form onSubmit={handleSaveSettings}>
-          <label style={labelStyle}>
-            Gym Name
-            <input
-              type="text"
-              value={gymName}
-              onChange={(e) => setGymName(e.target.value)}
-              style={inputStyle}
-            />
-          </label>
-          <label style={labelStyle}>
-            Payment / Renewal URL
-            <input
-              type="text"
-              value={paymentUrl}
-              onChange={(e) => setPaymentUrl(e.target.value)}
-              placeholder="https://..."
-              style={inputStyle}
-            />
-          </label>
-          <button
-            type="submit"
-            style={{
-              background: '#1a1a2e',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '0.6rem 1.4rem',
-              fontSize: '1rem',
-              cursor: 'pointer'
-            }}
-          >
-            Save Settings
-          </button>
-          {saved && (
-            <span style={{ marginLeft: '1rem', color: '#2e7d32', fontWeight: '600' }}>
-              ✅ Saved!
-            </span>
-          )}
+      {form && (
+        <form onSubmit={save}>
+          <div style={box}>
+            <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>Gym</h3>
+            <label style={label}>
+              Gym Name
+              <input type="text" value={form.gym_name || ''} onChange={set('gym_name')} style={input} />
+            </label>
+            <label style={label}>
+              Payment / Renewal Link
+              <input type="url" value={form.payment_url || ''} onChange={set('payment_url')} placeholder="https://…" style={input} />
+            </label>
+            <label style={label}>
+              Country Code
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.default_country_code || ''}
+                onChange={set('default_country_code')}
+                placeholder="e.g. 1, 44, 92"
+                style={{ ...input, maxWidth: '160px' }}
+              />
+            </label>
+            <p style={hint}>Added automatically to member numbers typed without a "+".</p>
+            <label style={label}>
+              "Renewed" button adds
+              <select value={form.renewal_months} onChange={set('renewal_months')} style={{ ...input, maxWidth: '160px' }}>
+                {[1, 2, 3, 6, 12].map((n) => (
+                  <option key={n} value={n}>{n} month{n > 1 ? 's' : ''}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div style={box}>
+            <h3 style={{ marginTop: 0, color: '#1a1a2e' }}>Reminders</h3>
+            <p style={{ color: '#555', marginTop: 0 }}>
+              Each member gets one message a day, starting 4 days before their membership ends and
+              stopping as soon as you mark them renewed.
+            </p>
+            <label style={label}>
+              Send from
+              <select value={form.send_hour} onChange={set('send_hour')} style={{ ...input, maxWidth: '160px' }}>
+                {Array.from({ length: 21 }, (_, h) => (
+                  <option key={h} value={h}>{hourLabel(h)}</option>
+                ))}
+              </select>
+            </label>
+            <p style={hint}>Nothing is sent automatically after 9 PM.</p>
+            <label style={label}>
+              Message
+              <textarea
+                rows={4}
+                value={form.message_template || ''}
+                onChange={set('message_template')}
+                style={{ ...input, resize: 'vertical' }}
+              />
+            </label>
+            <p style={hint}>
+              These are filled in for each member: {'{first_name}'} {'{name}'} {'{gym}'} {'{when}'} {'{date}'} {'{link}'}{' '}
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, message_template: form.default_template })}
+                style={{ background: 'none', border: 'none', color: colors.blue, cursor: 'pointer', padding: 0, fontSize: 'inherit' }}
+              >
+                Reset to original
+              </button>
+            </p>
+            <div style={{ fontWeight: 600, color: '#333', marginBottom: '0.3rem' }}>Preview</div>
+            <div style={{ background: '#dcf8c6', borderRadius: '8px', padding: '0.7rem 1rem', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+              {preview(form.message_template || '', form)}
+            </div>
+          </div>
+
+          <button type="submit" style={button()}>Save Settings</button>
+          {saved && <span style={{ marginLeft: '1rem', color: colors.green, fontWeight: 600 }}>✅ Saved!</span>}
         </form>
-      </div>
+      )}
     </div>
   );
 }
