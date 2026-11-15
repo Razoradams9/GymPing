@@ -29,10 +29,10 @@ test('date helpers', () => {
 });
 
 test('phone numbers', () => {
-  assert.equal(rem.normalizePhone('+1 (415) 555-2671', ''), '+14155552671');
-  assert.equal(rem.normalizePhone('0300 1234567', '92'), '+923001234567');
-  assert.equal(rem.normalizePhone('0044 7911 123456', '92'), '+447911123456');
-  assert.equal(rem.normalizePhone('12345', ''), null);
+  assert.equal(rem.normalizePhone('+1 (415) 555-2671'), '+14155552671');
+  assert.equal(rem.normalizePhone('92 300 1234567'), '+923001234567');
+  assert.equal(rem.normalizePhone('0044 7911 123456'), '+447911123456');
+  assert.equal(rem.normalizePhone('12345'), null);
 });
 
 test('message wording', () => {

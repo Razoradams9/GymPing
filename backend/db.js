@@ -54,7 +54,6 @@ const settingsColumns = db.prepare('PRAGMA table_info(settings)').all().map((c) 
 const newSettingsColumns = {
   message_template: 'TEXT',
   send_hour: 'INTEGER NOT NULL DEFAULT 9',
-  default_country_code: "TEXT NOT NULL DEFAULT ''",
   renewal_months: 'INTEGER NOT NULL DEFAULT 1'
 };
 for (const [name, type] of Object.entries(newSettingsColumns)) {
@@ -134,13 +133,12 @@ function getSettings() {
 function saveSettings(s) {
   db.prepare(
     `UPDATE settings SET gym_name = ?, payment_url = ?, message_template = ?, send_hour = ?,
-       default_country_code = ?, renewal_months = ? WHERE id = 1`
+       renewal_months = ? WHERE id = 1`
   ).run(
     s.gym_name,
     s.payment_url,
     s.message_template,
     s.send_hour,
-    s.default_country_code,
     s.renewal_months
   );
   return getSettings();

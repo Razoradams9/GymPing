@@ -47,18 +47,10 @@ function formatDate(dateStr) {
 
 // ---- Phone numbers ----
 
-// Returns '+<digits>' or null. Numbers typed without '+' get the gym's country code.
-function normalizePhone(input, defaultCountryCode) {
-  const raw = String(input || '').trim();
-  let digits = raw.replace(/\D/g, '');
-  if (raw.startsWith('+')) {
-    // already international
-  } else if (digits.startsWith('00')) {
-    digits = digits.slice(2);
-  } else {
-    const cc = String(defaultCountryCode || '').replace(/\D/g, '');
-    if (cc) digits = cc + digits.replace(/^0+/, '');
-  }
+// Returns '+<digits>' or null. Numbers must include the country code.
+function normalizePhone(input) {
+  let digits = String(input || '').replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
   if (digits.length < 8 || digits.length > 15) return null;
   return `+${digits}`;
 }

@@ -41,7 +41,7 @@ function withDays(member, today = rem.localDate()) {
 function parseMember(body) {
   const name = String(body.name || '').trim();
   if (!name) return { error: 'Name is required' };
-  const phone = rem.normalizePhone(body.phone, db.getSettings().default_country_code);
+  const phone = rem.normalizePhone(body.phone);
   if (!phone) {
     return { error: 'Phone number looks wrong. Include the country code, e.g. +14155552671' };
   }
@@ -137,7 +137,6 @@ app.post('/api/settings', (req, res) => {
     payment_url,
     message_template: String(b.message_template || '').trim() || null,
     send_hour,
-    default_country_code: String(b.default_country_code || '').replace(/\D/g, '').slice(0, 4),
     renewal_months
   });
   res.json({ ...saved, default_template: db.DEFAULT_TEMPLATE });

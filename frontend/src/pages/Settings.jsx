@@ -102,18 +102,6 @@ export default function Settings({ status }) {
               <input type="url" value={form.payment_url || ''} onChange={set('payment_url')} placeholder="https://…" style={input} />
             </label>
             <label style={label}>
-              Country Code
-              <input
-                type="text"
-                inputMode="numeric"
-                value={form.default_country_code || ''}
-                onChange={set('default_country_code')}
-                placeholder="e.g. 1, 44, 92"
-                style={{ ...input, maxWidth: '160px' }}
-              />
-            </label>
-            <p style={hint}>Added automatically to member numbers typed without a "+".</p>
-            <label style={label}>
               "Renewed" button adds
               <select value={form.renewal_months} onChange={set('renewal_months')} style={{ ...input, maxWidth: '160px' }}>
                 {[1, 2, 3, 6, 12].map((n) => (

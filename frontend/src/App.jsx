@@ -52,7 +52,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Navbar />
+      <Navbar status={status} />
       {status && !status.connected && (
         <div style={{ background: '#c62828', color: '#fff', padding: '0.8rem 2rem', fontWeight: 600 }}>
           ⚠️ WhatsApp is not connected, so reminders are paused.{' '}

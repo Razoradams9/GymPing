@@ -141,7 +141,7 @@ export default function MemberForm({ onSubmit, onCancel, initialData, whatsappCo
             required
           />
         </label>
-        <p style={hint}>Local numbers work too if you set your country code in Settings.</p>
+        <p style={hint}>Include the country code, e.g. +1 for the US or +44 for the UK.</p>
 
         <label style={label}>
           Membership End Date
