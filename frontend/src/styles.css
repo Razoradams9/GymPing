@@ -295,15 +295,20 @@ textarea.input { resize: vertical; min-height: 96px; }
 .connect { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
 .connect-card { width: 100%; max-width: 760px; margin: 0; padding: 28px 32px; }
 .connect .brand { color: var(--text); padding: 0 0 22px; }
-.connect-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: center; }
-.connect-body h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 6px; }
-.connect-body .sub { color: var(--muted); margin-bottom: 20px; }
-.connect-body .qr { width: 248px; height: 248px; margin: 0; }
+.connect-card h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 6px; }
+.connect-card .sub { color: var(--muted); margin-bottom: 22px; }
+.link-wide { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: center; }
+.link-wide .qr { width: 248px; height: 248px; margin: 0; }
+.link-switch { display: block; margin-top: 16px; }
+.pair-code { display: flex; gap: 14px; justify-content: center; margin: 4px 0 20px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 2rem; font-weight: 700; letter-spacing: 0.18em; }
+.pair-code span { background: var(--neutral-soft); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 6px 8px 14px; user-select: all; }
 .connect-skip { display: block; margin: 24px auto 0; color: var(--muted); font-weight: 500; }
 
 @media (max-width: 700px) {
   .connect-card { padding: 22px 20px; }
-  .connect-body { grid-template-columns: 1fr; justify-items: center; gap: 22px; }
+  .link-wide { grid-template-columns: 1fr; gap: 22px; }
+  .link-wide .qr { margin: 0 auto; }
+  .pair-code { font-size: 1.5rem; gap: 8px; }
 }
 .connected { display: flex; align-items: center; gap: 12px; }
 .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex: none; }

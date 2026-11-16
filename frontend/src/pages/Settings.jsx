@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../components/Icon';
 import { Alert, PageHead } from '../components/ui';
-import { LinkSteps, QrCode } from '../components/ConnectWhatsApp';
+import { LinkWhatsApp } from '../components/ConnectWhatsApp';
 import { api } from '../api';
 import { PRESETS, applyTheme } from '../theme';
 
@@ -69,9 +69,8 @@ function WhatsAppCard({ status, onUnlink }) {
         </>
       ) : (
         <>
-          <p className="sub">Scan this code once to link your number.</p>
-          <QrCode status={status} />
-          <LinkSteps />
+          <p className="sub">Link your number once.</p>
+          <LinkWhatsApp status={status} />
         </>
       )}
     </div>

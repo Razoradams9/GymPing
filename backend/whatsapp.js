@@ -88,17 +88,24 @@ class Link {
     this.stopped = false;
     this.retryMs = 3000;
     this.lastLooked = Date.now();
-    this.linked = fake; // has this gym scanned a QR code and paired?
+    this.linked = fake; // has this gym paired its number?
+    this.pairingCode = null; // code to type into WhatsApp, when linking by phone number
   }
 
   status() {
-    return { state: this.state, connected: this.state === 'connected', qr: this.qr };
+    return {
+      state: this.state,
+      connected: this.state === 'connected',
+      qr: this.qr,
+      pairing_code: this.pairingCode
+    };
   }
 
   setConnected() {
     this.state = 'connected';
     this.linked = true;
     this.qr = null;
+    this.pairingCode = null;
     this.retryMs = 3000;
     console.log(`Gym ${this.gymId}: WhatsApp is connected.`);
     for (const fn of readyListeners) quietly('WhatsApp ready handler failed', () => fn(this.gymId));
@@ -134,7 +141,7 @@ class Link {
     const { default: makeWASocket, DisconnectReason, makeCacheableSignalKeyStore, Browsers, fetchLatestBaileysVersion } = B;
     const logger = pino({ level: 'silent' });
     const auth = await authState(this.gymId);
-    this.linked = !!auth.creds.me;
+    this.linked = !!auth.creds.account;
     const { version } = await fetchLatestBaileysVersion();
     if (this.stopped) return;
 
@@ -168,7 +175,13 @@ class Link {
         if (this.stopped) return;
         const code = update.lastDisconnect?.error?.output?.statusCode;
         let wait = this.retryMs;
-        if (code === DisconnectReason.loggedOut || code === DisconnectReason.badSession) {
+        const abandonedCode = this.pairingCode && code !== DisconnectReason.restartRequired;
+        this.pairingCode = null;
+        if (abandonedCode) {
+          // A phone-number code was requested but never entered: forget the half-finished link.
+          await db.clearWaAuth(this.gymId);
+          wait = 1000;
+        } else if (code === DisconnectReason.loggedOut || code === DisconnectReason.badSession) {
           // The link is gone (unlinked from the phone, or broken): start over with a fresh QR code.
           console.log(`Gym ${this.gymId}: WhatsApp link ended; a new QR code is needed.`);
           await db.clearWaAuth(this.gymId);
@@ -185,6 +198,20 @@ class Link {
         setTimeout(() => this.connect().catch((e) => this.retryLater(e)), wait);
       }
     });
+  }
+
+  // Linking without a camera: WhatsApp accepts an 8-character code typed on the phone instead of a QR scan.
+  async requestPairingCode(phone) {
+    if (this.state === 'connected') throw new Error('WhatsApp is already connected');
+    if (fake) {
+      this.pairingCode = 'GYMP1NG8';
+      return this.pairingCode;
+    }
+    // The connection must be up and waiting to be linked, which is when it has a QR code ready.
+    for (let i = 0; i < 30 && this.state !== 'qr'; i++) await new Promise((r) => setTimeout(r, 500));
+    if (this.state !== 'qr' || !this.sock) throw new Error('WhatsApp is still starting. Try again in a moment.');
+    this.pairingCode = await this.sock.requestPairingCode(String(phone).replace(/\D/g, ''));
+    return this.pairingCode;
   }
 
   // Remember the owner's phone contacts as WhatsApp shares them after linking.
@@ -248,6 +275,10 @@ function getStatus(gymId) {
   return linkFor(gymId).status();
 }
 
+function requestPairingCode(gymId, phone) {
+  return linkFor(gymId).requestPairingCode(phone);
+}
+
 function isConnected(gymId) {
   const link = links.get(gymId);
   return !!link && link.state === 'connected';
@@ -300,7 +331,7 @@ async function startLinked() {
     let linked = fake;
     if (!fake) {
       const raw = await db.getWaAuth(gym.id, 'creds');
-      linked = !!raw && !!JSON.parse(raw, B.BufferJSON.reviver).me;
+      linked = !!raw && !!JSON.parse(raw, B.BufferJSON.reviver).account;
     }
     if (linked) linkFor(gym.id);
   }
@@ -326,6 +357,7 @@ module.exports = {
   onReady,
   onStopRequest,
   getStatus,
+  requestPairingCode,
   isConnected,
   sendMessage,
   getContacts,

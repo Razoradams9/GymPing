@@ -185,6 +185,21 @@ app.get('/api/status', gym, (req, res) => {
   res.json(wa.getStatus(req.gym.id));
 });
 
+// Link by phone number: returns a code the owner types into WhatsApp instead of scanning the QR code.
+app.post(
+  '/api/whatsapp/pairing-code',
+  gym,
+  wrap(async (req, res) => {
+    const phone = rem.normalizePhone(req.body.phone);
+    if (!phone) return res.status(400).json({ error: 'Enter your WhatsApp number, e.g. 98765 43210' });
+    try {
+      res.json({ code: await wa.requestPairingCode(req.gym.id, phone) });
+    } catch (err) {
+      res.status(409).json({ error: (err && err.message) || 'Could not get a code. Try again.' });
+    }
+  })
+);
+
 app.get(
   '/api/contacts',
   gym,

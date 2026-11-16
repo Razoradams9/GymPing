@@ -6,6 +6,7 @@ GymPing sends WhatsApp reminders to gym members whose membership is about to exp
 
 - **Daily reminders.** Each member gets one WhatsApp message a day, from the gym's own number, starting 4 days before their membership ends and through the last day. Reminders stop as soon as the member is marked renewed.
 - **Renewals.** Press **✓ Renewed** when a member pays. Their end date moves forward (1 month by default) and the renewal shows on the dashboard.
+- **Two ways to link WhatsApp.** Scan a QR code, or type in a code using the phone number (handy when GymPing is open on the same phone).
 - **Easy member entry.** Type members in, pick them from WhatsApp contacts, or import a spreadsheet (CSV). Export a backup at any time. Plain 10-digit numbers are treated as Indian (+91).
 - **Opt-out.** A member can reply **STOP** to a reminder, or the owner can switch reminders off for them.
 - **Their own look.** Logo, accent colour and light/dark mode per gym.
