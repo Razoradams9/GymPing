@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom';
 import Icon from './components/Icon';
 import ConnectScreen from './components/ConnectWhatsApp';
 import Auth from './pages/Auth';
+import Landing from './pages/Landing';
 import Admin from './pages/Admin';
 import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
@@ -166,7 +167,15 @@ function Main() {
   }
 
   if (gym === undefined) return null;
-  if (gym === null) return <Auth onDone={setGym} />;
+  if (gym === null) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Auth key="login" onDone={setGym} />} />
+        <Route path="/signup" element={<Auth key="signup" onDone={setGym} initialMode="signup" />} />
+        <Route path="*" element={<Landing />} />
+      </Routes>
+    );
+  }
   if (gym.is_admin) {
     return (
       <div className="shell">

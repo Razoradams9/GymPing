@@ -76,7 +76,7 @@ export default function Dashboard({ status, gym }) {
 
   return (
     <div className="page">
-      <PageHead title="Dashboard" subtitle={todayLabel}>
+      <PageHead eyebrow={gym.name} title="Dashboard" subtitle={todayLabel}>
         <button
           className="btn"
           disabled={!status?.connected}

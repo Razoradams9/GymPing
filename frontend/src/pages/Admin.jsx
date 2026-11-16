@@ -54,6 +54,7 @@ export default function Admin() {
   return (
     <div className="page">
       <PageHead
+        eyebrow="Overseer"
         title="Gyms"
         subtitle={gyms ? `${gyms.length} account${gyms.length === 1 ? '' : 's'}${pending ? `, ${pending} waiting for approval` : ''}` : ''}
       />

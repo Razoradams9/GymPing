@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Icon from '../components/Icon';
 import { Alert } from '../components/ui';
 import { api } from '../api';
 
-export default function Auth({ onDone }) {
-  const [mode, setMode] = useState('login'); // login | signup
+export default function Auth({ onDone, initialMode = 'login' }) {
+  const navigate = useNavigate();
+  const [mode, setMode] = useState(initialMode); // login | signup
   const [gymName, setGymName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,12 +21,12 @@ export default function Auth({ onDone }) {
     setError('');
     setBusy(true);
     try {
-      onDone(
-        await api(signup ? '/auth/signup' : '/auth/login', {
-          method: 'POST',
-          body: signup ? { gym_name: gymName, email, password, agree } : { email, password }
-        })
-      );
+      const gym = await api(signup ? '/auth/signup' : '/auth/login', {
+        method: 'POST',
+        body: signup ? { gym_name: gymName, email, password, agree } : { email, password }
+      });
+      navigate('/', { replace: true });
+      onDone(gym);
     } catch (err) {
       setError(err.message);
       setBusy(false);
@@ -35,6 +36,7 @@ export default function Auth({ onDone }) {
   return (
     <div className="login">
       <div>
+        <Link to="/" className="login-back">← Back to GymPing</Link>
         <form onSubmit={submit} className="card card-body">
           <div className="brand">
             <div className="brand-mark"><Icon name="dumbbell" size={19} /></div>

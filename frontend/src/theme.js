@@ -1,7 +1,8 @@
 // Applies a gym's own look: accent colour and light/dark choice.
 
 export const PRESETS = [
-  { name: 'Emerald', color: '' }, // the built-in default
+  { name: 'Orange', color: '' }, // the built-in default
+  { name: 'Emerald', color: '#059669' },
   { name: 'Blue', color: '#2563eb' },
   { name: 'Violet', color: '#7c3aed' },
   { name: 'Rose', color: '#e11d48' },
@@ -21,7 +22,8 @@ function textOn(hex) {
 
 export function applyTheme(gym) {
   const root = document.documentElement;
-  const mode = gym?.theme_mode;
+  // Before login (landing, sign-up, legal pages) GymPing wears its own dark look.
+  const mode = gym ? gym.theme_mode : 'dark';
   if (mode === 'light' || mode === 'dark') root.dataset.theme = mode;
   else delete root.dataset.theme;
 

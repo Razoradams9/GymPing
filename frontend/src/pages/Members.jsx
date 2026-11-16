@@ -56,7 +56,7 @@ export default function Members({ status }) {
 
   return (
     <div className="page">
-      <PageHead title="Members" subtitle={count}>
+      <PageHead eyebrow="Your gym" title="Members" subtitle={count}>
         {members && members.length > 0 && (
           <div className="search">
             <Icon name="search" size={16} />

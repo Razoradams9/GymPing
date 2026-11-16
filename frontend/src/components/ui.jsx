@@ -1,10 +1,11 @@
 import Icon from './Icon';
 import { daysLabel } from '../api';
 
-export function PageHead({ title, subtitle, children }) {
+export function PageHead({ eyebrow, title, subtitle, children }) {
   return (
     <div className="page-head">
       <div>
+        {eyebrow && <span className="eyebrow">{eyebrow}</span>}
         <h1>{title}</h1>
         {subtitle && <p>{subtitle}</p>}
       </div>

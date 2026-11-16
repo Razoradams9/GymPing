@@ -9,7 +9,7 @@ GymPing sends WhatsApp reminders to gym members whose membership is about to exp
 - **Two ways to link WhatsApp.** Scan a QR code, or type in a code using the phone number (handy when GymPing is open on the same phone).
 - **Easy member entry.** Type members in, pick them from WhatsApp contacts, or import a spreadsheet (CSV). Export a backup at any time. Plain 10-digit numbers are treated as Indian (+91).
 - **Opt-out.** A member can reply **STOP** to a reminder, or the owner can switch reminders off for them.
-- **Their own look.** Logo, accent colour and light/dark mode per gym.
+- **Their own look.** Logo, accent colour and light/dark mode per gym, on top of the default charcoal-and-orange gym style.
 - **Their own wording.** The reminder message is editable, with a live preview.
 - **Nothing gets lost.** Reminders missed while the service or WhatsApp was down go out as soon as it is back. Failed messages show on the dashboard with a **Try again** button.
 

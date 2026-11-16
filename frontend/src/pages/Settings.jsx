@@ -182,7 +182,7 @@ export default function Settings({ status, gym, setGym }) {
 
   return (
     <div className="page">
-      <PageHead title="Settings" subtitle="Your gym, your look, your message" />
+      <PageHead eyebrow="Make it yours" title="Settings" subtitle="Your gym, your look, your message" />
       <Alert>{error}</Alert>
 
       <div className="settings-grid">
@@ -237,7 +237,7 @@ export default function Settings({ status, gym, setGym }) {
                     type="button"
                     key={p.name}
                     className={`swatch ${p.color === (form.theme_color || '') ? 'on' : ''}`}
-                    style={{ background: p.color || '#059669' }}
+                    style={{ background: p.color || '#f36100' }}
                     onClick={() => setForm({ ...form, theme_color: p.color })}
                     aria-label={p.name}
                     aria-pressed={p.color === (form.theme_color || '')}
@@ -247,7 +247,7 @@ export default function Settings({ status, gym, setGym }) {
                 <input
                   type="color"
                   className={`swatch-custom ${isPreset ? '' : 'on'}`}
-                  value={form.theme_color || '#059669'}
+                  value={form.theme_color || '#f36100'}
                   onChange={set('theme_color')}
                   aria-label="Custom colour"
                   title="Custom colour"
