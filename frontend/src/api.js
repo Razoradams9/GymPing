@@ -1,45 +1,32 @@
-// All calls to the backend go through here so a required password is handled in one place.
+// All calls to the backend go through here. Login is a cookie the server sets;
+// the extra header proves the request comes from this page.
 
-const KEY = 'gymping-password';
-let onUnauthorized = () => {};
+let onLoggedOut = () => {};
 
-export function setUnauthorizedHandler(fn) {
-  onUnauthorized = fn;
-}
-
-export function setPassword(pw) {
-  try {
-    localStorage.setItem(KEY, pw);
-  } catch {
-    /* private window: the password just won't be remembered */
-  }
-}
-
-function getPassword() {
-  try {
-    return localStorage.getItem(KEY) || '';
-  } catch {
-    return '';
-  }
+export function setLoggedOutHandler(fn) {
+  onLoggedOut = fn;
 }
 
 export async function api(path, { method = 'GET', body } = {}) {
   const res = await fetch(`/api${path}`, {
     method,
-    headers: {
-      'x-gymping-password': getPassword(),
-      ...(body ? { 'Content-Type': 'application/json' } : {})
-    },
+    credentials: 'same-origin',
+    headers: { 'x-gymping': '1', ...(body ? { 'Content-Type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401) onUnauthorized();
-  if (!res.ok) throw new Error(data.error || 'Something went wrong');
+  if (res.status === 401 && !path.startsWith('/auth/')) onLoggedOut();
+  if (!res.ok) {
+    const err = new Error(data.error || 'Something went wrong');
+    err.status = res.status;
+    err.accountStatus = data.status;
+    throw err;
+  }
   return data;
 }
 
 export function formatDate(dateStr) {
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString(undefined, {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-IN', {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
@@ -47,7 +34,7 @@ export function formatDate(dateStr) {
 }
 
 export function formatDateTime(iso) {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString('en-IN', {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',

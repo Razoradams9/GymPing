@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import MemberForm from '../components/MemberForm';
+import ImportMembers from '../components/ImportMembers';
 import Icon from '../components/Icon';
 import { Alert, DaysBadge, Empty, PageHead, Person, RenewButton } from '../components/ui';
 import { api, formatDate } from '../api';
@@ -8,6 +9,7 @@ export default function Members({ status }) {
   const [members, setMembers] = useState(null);
   const [form, setForm] = useState(null); // null | { member } where member is null for "add"
   const [search, setSearch] = useState('');
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
 
   async function load() {
@@ -33,6 +35,7 @@ export default function Members({ status }) {
   }
 
   const closeForm = useCallback(() => setForm(null), []);
+  const closeImport = useCallback(() => setImporting(false), []);
 
   // Errors are shown inside the form, so let them propagate.
   async function handleSubmit(data) {
@@ -67,6 +70,10 @@ export default function Members({ status }) {
             />
           </div>
         )}
+        <button className="btn secondary" onClick={() => setImporting(true)}>Import</button>
+        {members && members.length > 0 && (
+          <a className="btn secondary" href="/api/members/export" download>Export</a>
+        )}
         <button className="btn" onClick={() => setForm({ member: null })}>
           <Icon name="plus" />
           Add member
@@ -84,6 +91,8 @@ export default function Members({ status }) {
           whatsappConnected={!!status?.connected}
         />
       )}
+
+      {importing && <ImportMembers onClose={closeImport} onDone={load} />}
 
       <div className="card">
         {members === null ? (
@@ -110,7 +119,10 @@ export default function Members({ status }) {
                   <tr key={m.id}>
                     <td><Person name={m.name} sub={m.phone} /></td>
                     <td className="nowrap">{formatDate(m.membership_end_date)}</td>
-                    <td><DaysBadge days={m.days_remaining} /></td>
+                    <td>
+                      <DaysBadge days={m.days_remaining} />
+                      {m.reminders_off && <span className="badge tone-neutral" style={{ marginLeft: 6 }}>Reminders off</span>}
+                    </td>
                     <td className="actions">
                       <RenewButton onClick={() => act(() => api(`/members/${m.id}/renew`, { method: 'POST' }))} />
                       <button className="btn ghost" onClick={() => setForm({ member: m })} aria-label={`Edit ${m.name}`} title="Edit">

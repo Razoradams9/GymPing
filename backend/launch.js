@@ -15,12 +15,11 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const PORT = Number(process.env.PORT) || 3001;
 const url = `http://localhost:${PORT}`;
-const headers = { 'x-gymping-password': process.env.GYMPING_PASSWORD || '' };
 const arg = process.argv[2] || '';
 
 async function isRunning() {
   try {
-    await fetch(`http://127.0.0.1:${PORT}/api/status`, { signal: AbortSignal.timeout(2000) });
+    await fetch(`http://127.0.0.1:${PORT}/healthz`, { signal: AbortSignal.timeout(2000) });
     return true;
   } catch {
     return false;
@@ -65,8 +64,14 @@ async function start() {
 }
 
 async function stop() {
-  if (!(await isRunning())) return console.log('GymPing is not running.');
-  await fetch(`http://127.0.0.1:${PORT}/api/shutdown`, { method: 'POST', headers }).catch(() => {});
+  const pidFile = path.join(__dirname, 'gymping.pid');
+  if (!(await isRunning()) || !fs.existsSync(pidFile)) return console.log('GymPing is not running.');
+  try {
+    process.kill(Number(fs.readFileSync(pidFile, 'utf8')));
+  } catch {
+    /* already gone */
+  }
+  fs.rmSync(pidFile, { force: true });
   console.log('GymPing is turned off.');
 }
 

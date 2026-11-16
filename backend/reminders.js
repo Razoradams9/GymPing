@@ -5,7 +5,7 @@ const WINDOW_DAYS = 4; // remind daily from this many days before expiry, throug
 const QUIET_HOUR = 21; // never start automatic sends at or after 9 PM
 const MAX_AUTO_ATTEMPTS = 3; // automatic tries per member per day before waiting for the owner
 
-// ---- Dates (all 'YYYY-MM-DD' strings in the computer's local time) ----
+// ---- Dates (all 'YYYY-MM-DD' strings in the server's time zone, which is India's) ----
 
 function localDate(d = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
@@ -45,29 +45,41 @@ function formatDate(dateStr) {
   });
 }
 
+// Accepts 2026-11-19, 19/11/2026, 19-11-2026 or 19.11.2026 (day first, as written in India).
+function parseDate(input) {
+  const s = String(input || '').trim();
+  if (isValidDate(s)) return s;
+  const m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+  if (!m) return null;
+  const iso = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  return isValidDate(iso) ? iso : null;
+}
+
 // ---- Phone numbers ----
 
-// Returns '+<digits>' or null. Numbers must include the country code.
+// Returns '+<digits>' or null. A plain 10-digit number is taken as Indian (+91).
 function normalizePhone(input) {
   let digits = String(input || '').replace(/\D/g, '');
   if (digits.startsWith('00')) digits = digits.slice(2);
+  else if (digits.length === 11 && digits.startsWith('0')) digits = `91${digits.slice(1)}`;
+  else if (digits.length === 10) digits = `91${digits}`;
   if (digits.length < 8 || digits.length > 15) return null;
   return `+${digits}`;
 }
 
 // ---- Message ----
 
-function buildMessage(template, member, settings, today) {
+function buildMessage(template, member, gym, today) {
   const days = daysBetween(today, member.membership_end_date);
   const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
   const values = {
     name: member.name,
     first_name: member.name.trim().split(/\s+/)[0],
-    gym: settings.gym_name || 'the gym',
+    gym: gym.name || 'the gym',
     when,
     days: String(Math.max(days, 0)),
     date: formatDate(member.membership_end_date),
-    link: settings.payment_url || ''
+    link: gym.payment_url || ''
   };
   return template.replace(/\{(\w+)\}/g, (match, key) => (key in values ? values[key] : match)).trim();
 }
@@ -82,74 +94,87 @@ function sendGapMs() {
   return 20000 + Math.random() * 40000;
 }
 
-async function sendReminder(member, today) {
-  const settings = await db.getSettings();
-  const message = buildMessage(settings.message_template, member, settings, today);
+async function sendReminder(gym, member, today) {
+  const message = buildMessage(gym.message_template || db.DEFAULT_TEMPLATE, member, gym, today);
   try {
-    await wa.sendMessage(member.phone, message);
-    console.log(`Reminder sent to ${member.name} (${member.phone})`);
+    await wa.sendMessage(gym.id, member.phone, message);
     return await db.recordReminder(member, today, 'sent', message, null);
   } catch (err) {
-    console.error(`Reminder to ${member.name} failed: ${err.message}`);
-    return await db.recordReminder(member, today, 'failed', message, (err && err.message) || String(err));
+    const reason = (err && err.message) || String(err);
+    console.error(`Gym ${gym.id}: a reminder failed: ${reason}`);
+    return await db.recordReminder(member, today, 'failed', message, reason);
   }
 }
 
-let running = false;
+const running = new Set(); // gym ids with a run in progress
 
-// Sends today's reminder to every member expiring within the window who hasn't
-// had one today. Safe to call repeatedly: it is how missed days and WhatsApp
-// outages are caught up. `manual` (the owner pressed the button) ignores the
-// send hours and the automatic-attempt limit.
-async function runReminders({ manual = false } = {}) {
-  if (running) return { skipped: 'A reminder run is already in progress' };
-  if (!wa.isConnected()) return { skipped: 'WhatsApp is not connected' };
+// Sends today's reminder to every member of one gym expiring within the window
+// who hasn't had one today. Safe to call repeatedly: it is how missed days and
+// WhatsApp outages are caught up. `manual` (the owner pressed the button)
+// ignores the send hours and the automatic-attempt limit.
+async function runReminders(gymId, { manual = false } = {}) {
+  if (running.has(gymId)) return { skipped: 'A reminder run is already in progress' };
+  if (!wa.isConnected(gymId)) return { skipped: 'WhatsApp is not connected' };
+  let gym = await db.getGymById(gymId);
+  if (!gym || gym.status !== 'active') return { skipped: 'This account is not active' };
 
   const now = new Date();
-  const { send_hour } = await db.getSettings();
-  if (!manual && (now.getHours() < send_hour || now.getHours() >= QUIET_HOUR)) {
+  if (!manual && (now.getHours() < gym.send_hour || now.getHours() >= QUIET_HOUR)) {
     return { skipped: 'Outside sending hours' };
   }
 
-  running = true;
+  running.add(gymId);
   const result = { sent: 0, failed: 0 };
   try {
     const today = localDate(now);
     const due = [];
-    for (const m of await db.getMembersExpiringBetween(today, addDays(today, WINDOW_DAYS))) {
+    for (const m of await db.getMembersExpiringBetween(gymId, today, addDays(today, WINDOW_DAYS))) {
       const r = await db.getReminder(m.id, today);
       if (!r || (r.status === 'failed' && (manual || r.attempts < MAX_AUTO_ATTEMPTS))) due.push(m);
     }
 
     for (let i = 0; i < due.length; i++) {
       if (i > 0) await sleep(sendGapMs());
-      if (!wa.isConnected()) break; // the rest go out once WhatsApp is back
-      // The member may have been renewed, edited or removed while we waited.
-      const member = await db.getMemberById(due[i].id);
-      if (!member) continue;
+      if (!wa.isConnected(gymId)) break; // the rest go out once WhatsApp is back
+      // The member, or the gym's settings, may have changed while we waited.
+      gym = await db.getGymById(gymId);
+      if (!gym || gym.status !== 'active') break;
+      const member = await db.getMemberById(gymId, due[i].id);
+      if (!member || member.reminders_off) continue;
       const days = daysBetween(today, member.membership_end_date);
       if (days < 0 || days > WINDOW_DAYS) continue;
-      const r = await sendReminder(member, today);
+      const r = await sendReminder(gym, member, today);
       result[r.status === 'sent' ? 'sent' : 'failed']++;
     }
   } finally {
-    running = false;
+    running.delete(gymId);
   }
   if (result.sent || result.failed) {
-    console.log(`Reminder run done: ${result.sent} sent, ${result.failed} failed.`);
+    console.log(`Gym ${gymId}: reminder run done, ${result.sent} sent, ${result.failed} failed.`);
   }
   return result;
+}
+
+// One pass over every active gym. Gyms run side by side; each paces its own messages.
+async function runAll() {
+  for (const gym of await db.getActiveGyms()) {
+    if (wa.isConnected(gym.id)) {
+      runReminders(gym.id).catch((err) => console.error(`Gym ${gym.id}: reminder run failed:`, err.message));
+    }
+  }
 }
 
 module.exports = {
   WINDOW_DAYS,
   localDate,
   isValidDate,
+  parseDate,
   addDays,
   addMonths,
   daysBetween,
   normalizePhone,
   buildMessage,
   sendReminder,
-  runReminders
+  runReminders,
+  runAll
 };

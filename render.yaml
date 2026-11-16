@@ -10,12 +10,14 @@ services:
         value: 0.0.0.0
       - key: GYMPING_HOSTED
         value: "1"
-      # Your gym's time zone, so "9 AM" and "4 days before" mean your local time.
-      # Names: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      # Send hours and dates follow Indian time.
       - key: TZ
-        value: America/New_York
-      # Render asks you for this when you create the service.
+        value: Asia/Kolkata
+      # Render asks you for these when you create the service.
       - key: DATABASE_URL
         sync: false
-      # No login by default: anyone with the address can use this GymPing.
-      # To require a password, add GYMPING_PASSWORD in Render's Environment settings.
+      # Your own overseer login. New gyms wait for your approval.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

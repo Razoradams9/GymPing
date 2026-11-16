@@ -1,102 +1,84 @@
 # GymPing 🏋️
 
-GymPing sends WhatsApp reminders to gym members whose membership is about to expire. Link your WhatsApp once by scanning a QR code, add your members, and GymPing does the rest.
+GymPing sends WhatsApp reminders to gym members whose membership is about to expire. It is one hosted service for many gyms: each gym owner has their own account, members, WhatsApp link and look.
 
-## What it does
+## What a gym owner gets
 
-- **Daily reminders.** Each member gets one WhatsApp message a day, starting 4 days before their membership ends and through the last day. Reminders stop as soon as you mark them renewed.
-- **Renewals.** Press **✓ Renewed** on a member when they pay. Their end date moves forward (1 month by default) and the renewal shows on the dashboard.
-- **Add members from your contacts.** Pick a member straight from your WhatsApp contacts, or type them in.
-- **Your own wording.** Edit the reminder message in Settings, with a live preview.
-- **Nothing gets lost.** If the computer was off or WhatsApp was disconnected, missed reminders go out as soon as it is back. Failed messages (for example a wrong number) show on the dashboard with a **Try again** button.
+- **Daily reminders.** Each member gets one WhatsApp message a day, from the gym's own number, starting 4 days before their membership ends and through the last day. Reminders stop as soon as the member is marked renewed.
+- **Renewals.** Press **✓ Renewed** when a member pays. Their end date moves forward (1 month by default) and the renewal shows on the dashboard.
+- **Easy member entry.** Type members in, pick them from WhatsApp contacts, or import a spreadsheet (CSV). Export a backup at any time. Plain 10-digit numbers are treated as Indian (+91).
+- **Opt-out.** A member can reply **STOP** to a reminder, or the owner can switch reminders off for them.
+- **Their own look.** Logo, accent colour and light/dark mode per gym.
+- **Their own wording.** The reminder message is editable, with a live preview.
+- **Nothing gets lost.** Reminders missed while the service or WhatsApp was down go out as soon as it is back. Failed messages show on the dashboard with a **Try again** button.
 
-## Setup
+## What you (the overseer) get
+
+Log in with the overseer email and password to see every gym account: status, number of members, reminders sent, whether WhatsApp is connected, and when they were last active. You can:
+
+- **Approve** new sign-ups (new gyms cannot use GymPing until you do),
+- **Suspend** and **reactivate** gyms,
+- **Reset a password** for an owner who forgot theirs.
+
+The overseer screen never shows members' names, phone numbers or messages. (Whoever controls the database can technically read it, which the Privacy Policy says plainly.)
+
+## Before you sell it
+
+1. Put your business name and contact email in `frontend/src/legal-config.js`. They appear in the Terms and Privacy Policy.
+2. Have a lawyer review `frontend/src/pages/Legal.jsx`. The Terms and Privacy Policy there are plain-language starting drafts, not legal advice.
+3. Not built yet: payment/licensing, and email (password-reset links, alerts when a gym's WhatsApp disconnects). Until then, approval is how you control who gets in.
+
+All times are Indian time (`Asia/Kolkata`).
+
+## Hosting it online (Render, free plan)
+
+Render's free plan has no lasting disk, so GymPing keeps everything in a free online Postgres database.
+
+1. **Create the database.** Sign up at [Neon](https://neon.tech) (free), create a project, and copy its connection string (it starts with `postgresql://`). Don't use Render's own free database: it is deleted after 30 days.
+2. **Create the app.** On [Render](https://render.com): New → Blueprint → pick this repo. When asked, enter:
+   - `DATABASE_URL`: the connection string from step 1,
+   - `ADMIN_EMAIL` and `ADMIN_PASSWORD`: your own overseer login (password of 8+ characters).
+3. **Open the `…onrender.com` address** and log in as the overseer. Gym owners use **Create account** on the same address.
+
+Limits of the free plan:
+
+- **It sleeps without visitors.** GymPing visits its own address every 10 minutes to stay awake. For a second safety net, point a free uptime monitor (e.g. UptimeRobot) at `https://YOUR-APP.onrender.com/healthz`.
+- **Restarts happen.** After one, GymPing reconnects each gym's WhatsApp by itself and catches up on missed reminders.
+- **It is small.** Fine for trying things out and a handful of gyms; move to a paid plan before taking on paying customers.
+
+Other hosts: the same `Dockerfile` runs anywhere that runs containers. `fly.toml` is a ready setup for Fly.io (paid) with a disk instead of a database. To serve the dashboard from Vercel instead, set the app address in `frontend/vercel.json` and use `frontend` as the root directory.
+
+If you ran the earlier single-gym version on the same database, its data is set aside (tables `legacy_*`, or schema `legacy` on Postgres), not deleted, and not shown in the app.
+
+## Running it on your own computer
 
 You need [Node.js 22.5 or newer](https://nodejs.org/).
-
-### Windows (no terminal needed)
-
-1. Double-click **Setup GymPing**. It installs everything, puts a **GymPing** icon on your Desktop, and opens GymPing in your browser.
-2. From then on, double-click the **GymPing** Desktop icon to open it.
-
-GymPing runs in the background with no window to keep open, and starts by itself when the computer is turned on. To turn it off, use **Turn GymPing off** in Settings or double-click **Stop GymPing**.
-
-### Mac / Linux
 
 ```bash
 npm run setup
 ```
 
 ```bash
-node backend/launch.js
+npm start
 ```
 
-This starts GymPing in the background and opens [http://localhost:3001](http://localhost:3001). Stop it with `node backend/launch.js --stop`.
+Open [http://localhost:3001](http://localhost:3001) and create an account. Without `ADMIN_EMAIL` set, new accounts are active straight away. On Windows you can double-click **Setup GymPing** instead; it also adds a Desktop icon and starts GymPing with the computer.
 
-## First use
-
-1. The first time you open GymPing it shows a **Connect your WhatsApp** screen with a QR code. On your phone open WhatsApp → Settings → Linked Devices → Link a Device, and scan it. You only do this once.
-2. In **Settings**, enter your gym name and your payment link, then **Save Settings**.
-3. Go to **Members** and add your members. Phone numbers need the country code, e.g. `+14155552671`.
-
-> Use a dedicated gym WhatsApp number if you can. GymPing sends messages slowly (20–60 seconds apart) to look natural, but WhatsApp can restrict numbers that send automated messages.
-
-## Keeping it running 24/7
-
-GymPing only sends reminders while it is running, so leave the computer on.
-
-- **Windows:** Setup already makes GymPing start with the computer. To undo that, run `node backend/launch.js --uninstall`.
-- **Mac / Linux:** use [pm2](https://pm2.keymetrics.io/): `pm2 start backend/index.js --name gymping`, then `pm2 save` and `pm2 startup`.
-
-If WhatsApp ever logs the session out, the top bar turns red. Click **Connect WhatsApp** and scan the new QR code.
-
-Activity and errors are written to `backend/gymping.log`.
-
-## Opening it from another device
-
-By default GymPing can only be opened on the computer it runs on. To open it from your phone or another computer on the same network, start it with a password (leaving the password out works too, but then anyone on the network can use it):
-
-```bash
-HOST=0.0.0.0 GYMPING_PASSWORD=choose-a-password npm start
-```
-
-## Hosting it online (Render, free plan)
-
-One hosted copy serves one gym. Render's free plan has no lasting disk, so GymPing keeps its data and the WhatsApp link in a free online Postgres database instead.
-
-1. **Create the database.** Sign up at [Neon](https://neon.tech) (free), create a project, and copy its connection string (it starts with `postgresql://`). Don't use Render's own free database: it is deleted after 30 days.
-2. **Set your time zone.** In `render.yaml`, change `TZ` to your gym's time zone, then commit and push.
-3. **Create the app.** On [Render](https://render.com): New → Blueprint → pick this repo. When asked, enter `DATABASE_URL` (the connection string from step 1).
-4. **Link WhatsApp.** Open the `…onrender.com` address and scan the QR code.
-
-**There is no login by default**, so anyone who has the address can see your members and send messages. To require a password, add `GYMPING_PASSWORD` under Environment in Render.
-
-The hosted copy uses a lightweight WhatsApp link with no hidden browser, so it fits in the free plan's 512 MB of memory.
-
-Limits of the free plan:
-
-- **It sleeps without visitors.** GymPing visits its own address every 10 minutes to stay awake. For a second safety net, point a free uptime monitor (e.g. UptimeRobot) at `https://YOUR-APP.onrender.com/healthz`.
-- **Restarts happen.** After one, GymPing reconnects to WhatsApp by itself and catches up on any reminders it missed.
-- **Contacts fill in gradually.** "Pick from WhatsApp contacts" lists the contacts WhatsApp shares after linking, which can take a few minutes and may not be everyone.
-
-Other hosts: the same `Dockerfile` runs anywhere that runs containers. `fly.toml` is a ready setup for Fly.io (paid) with a disk instead of a database. To serve the dashboard from Vercel instead, set the app address in `frontend/vercel.json` and use `frontend` as the root directory.
-
-## Options
+## Settings (environment variables)
 
 | Variable | Meaning | Default |
 |---|---|---|
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | The overseer login. When set, new gyms need approval | none |
+| `DATABASE_URL` | Postgres database to use instead of the local data file | none |
 | `PORT` | Port the app runs on | `3001` |
-| `HOST` | Address to listen on | `127.0.0.1` |
-| `GYMPING_PASSWORD` | Password for the app (recommended whenever `HOST` is not local) | none |
-| `GYMPING_DB` | Where the data file is kept | `backend/gymping.db` |
-| `DATABASE_URL` | Postgres database to use instead of the local data file (for hosts without a disk) | none |
-| `GYMPING_DATA_DIR` | Folder for the data file and WhatsApp session (hosted copies) | `backend/` |
-| `TZ` | Time zone used for send times and dates | the computer's |
-| `GYMPING_SHOW_BROWSER` | Set to `1` to show the WhatsApp Web window, for troubleshooting | off |
-| `GYMPING_WA_ENGINE` | `light` connects to WhatsApp without a hidden browser (used when hosted) | browser |
+| `HOST` | Address to listen on (`0.0.0.0` when hosted) | `127.0.0.1` |
+| `TZ` | Time zone for send times and dates | `Asia/Kolkata` |
+| `GYMPING_DATA_DIR` | Folder for the local data file | `backend/` |
 | `GYMPING_FAKE_WA` | Set to `1` to try the app without WhatsApp; nothing is sent | off |
 
-Your data lives in `backend/gymping.db` and the WhatsApp session in `backend/.wwebjs_auth/`. Back up both.
+## How it connects to WhatsApp
+
+Each gym links its number by scanning a QR code, the same way as WhatsApp's Linked Devices. This is not an official WhatsApp business channel, and WhatsApp can restrict numbers that send automated messages. GymPing sends slowly (20–60 seconds apart, never after 9 PM) to reduce that risk; a dedicated gym number is still the safe choice.
 
 ## Development
 
@@ -104,4 +86,4 @@ Your data lives in `backend/gymping.db` and the WhatsApp session in `backend/.ww
 npm test
 ```
 
-For live reload of the dashboard, run `npm start` and, in a second terminal, `npm --prefix frontend run dev`, then open [http://localhost:5173](http://localhost:5173).
+The tests run on SQLite, or on Postgres if `DATABASE_URL` points at an empty database. For live reload of the dashboard, run `npm start` and, in a second terminal, `npm --prefix frontend run dev`, then open [http://localhost:5173](http://localhost:5173).

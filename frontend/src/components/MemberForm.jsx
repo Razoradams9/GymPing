@@ -7,6 +7,7 @@ export default function MemberForm({ onSubmit, onCancel, initialData, whatsappCo
   const [name, setName] = useState(initialData?.name || '');
   const [phone, setPhone] = useState(initialData?.phone || '');
   const [endDate, setEndDate] = useState(initialData?.membership_end_date || '');
+  const [remindersOn, setRemindersOn] = useState(!initialData?.reminders_off);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -45,7 +46,7 @@ export default function MemberForm({ onSubmit, onCancel, initialData, whatsappCo
     setError('');
     setSaving(true);
     try {
-      await onSubmit({ name, phone, membership_end_date: endDate });
+      await onSubmit({ name, phone, membership_end_date: endDate, reminders_off: !remindersOn });
     } catch (err) {
       setError(err.message);
       setSaving(false);
@@ -123,14 +124,21 @@ export default function MemberForm({ onSubmit, onCancel, initialData, whatsappCo
                 className="input"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+14155552671"
+                placeholder="98765 43210"
                 required
               />
-              <small>Include the country code, e.g. +1 for the US or +44 for the UK.</small>
+              <small>10-digit Indian numbers work as they are. For other countries include the code, like +44.</small>
             </label>
             <label className="field">
               <span>Membership end date</span>
               <input type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={remindersOn} onChange={(e) => setRemindersOn(e.target.checked)} />
+              <span>
+                Send WhatsApp reminders
+                <small>Untick if this member asked not to be messaged. Replying STOP to a reminder does this too.</small>
+              </span>
             </label>
             <div className="modal-foot">
               <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>

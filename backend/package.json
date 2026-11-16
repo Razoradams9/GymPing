@@ -1,7 +1,7 @@
 {
   "name": "gymping-backend",
   "version": "1.0.0",
-  "description": "GymPing backend - WhatsApp membership reminder system",
+  "description": "GymPing backend - WhatsApp membership reminders for gyms",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -14,13 +14,7 @@
     "node-cron": "^3.0.3",
     "pg": "^8.23.1",
     "pino": "^10.4.0",
-    "puppeteer": "^22.4.1",
-    "qrcode": "^1.5.3",
-    "whatsapp-web.js": "^1.23.0"
-  },
-  "allowScripts": {
-    "puppeteer@22.15.0": true,
-    "puppeteer@24.38.0": true
+    "qrcode": "^1.5.3"
   },
   "engines": {
     "node": ">=22.5"

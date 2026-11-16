@@ -1,79 +1,95 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom';
 import Icon from './components/Icon';
 import ConnectScreen from './components/ConnectWhatsApp';
+import Auth from './pages/Auth';
+import Admin from './pages/Admin';
 import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
 import Settings from './pages/Settings';
-import { api, setPassword, setUnauthorizedHandler } from './api';
+import { Privacy, Terms } from './pages/Legal';
+import { api, setLoggedOutHandler } from './api';
+import { applyTheme } from './theme';
 
-function Brand() {
+function Brand({ gym }) {
   return (
     <div className="brand">
-      <div className="brand-mark"><Icon name="dumbbell" size={19} /></div>
-      <span>GymPing</span>
+      {gym?.logo ? (
+        <img src={gym.logo} alt="" className="brand-logo" />
+      ) : (
+        <div className="brand-mark"><Icon name="dumbbell" size={19} /></div>
+      )}
+      <span className="brand-text">
+        <span className="brand-name">{gym?.name || 'GymPing'}</span>
+        {gym && <span className="brand-by">GymPing</span>}
+      </span>
     </div>
   );
 }
 
-function Login({ onDone }) {
-  const [pw, setPw] = useState('');
-  const [wrong, setWrong] = useState(false);
-
-  async function submit(e) {
-    e.preventDefault();
-    setPassword(pw);
-    try {
-      await api('/status');
-      onDone();
-    } catch {
-      setWrong(true);
-    }
-  }
-
-  return (
-    <div className="login">
-      <form onSubmit={submit} className="card card-body">
-        <Brand />
-        <label className="field">
-          <span>Password</span>
-          <input type="password" className="input" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
-          {wrong && <small style={{ color: 'var(--danger)' }}>Wrong password.</small>}
-        </label>
-        <button type="submit" className="btn" style={{ width: '100%' }}>Open GymPing</button>
-      </form>
-    </div>
-  );
-}
-
-function Sidebar({ status }) {
+function Sidebar({ gym, status, onLogout }) {
   const connected = !!status?.connected;
   return (
     <aside className="sidebar">
       <div className="sidebar-inner">
-      <Brand />
-      <nav className="nav">
-        <NavLink to="/" end><Icon name="dashboard" /><span>Dashboard</span></NavLink>
-        <NavLink to="/members"><Icon name="users" /><span>Members</span></NavLink>
-        <NavLink to="/settings"><Icon name="settings" /><span>Settings</span></NavLink>
-      </nav>
-      {status && (
-        <Link to="/settings" className={`wa-pill ${connected ? '' : 'off'}`}>
-          <span className="dot" />
-          {connected ? (
-            <span>WhatsApp<span className="long"> connected</span></span>
+        <Brand gym={gym.is_admin ? null : gym} />
+        <nav className="nav">
+          {gym.is_admin ? (
+            <NavLink to="/" end><Icon name="users" /><span>Gyms</span></NavLink>
           ) : (
-            <span>Connect WhatsApp</span>
+            <>
+              <NavLink to="/" end><Icon name="dashboard" /><span>Dashboard</span></NavLink>
+              <NavLink to="/members"><Icon name="users" /><span>Members</span></NavLink>
+              <NavLink to="/settings"><Icon name="settings" /><span>Settings</span></NavLink>
+            </>
           )}
-        </Link>
-      )}
+        </nav>
+        <div className="side-foot">
+          {status && (
+            <Link to="/settings" className={`wa-pill ${connected ? '' : 'off'}`}>
+              <span className="dot" />
+              {connected ? (
+                <span>WhatsApp<span className="long"> connected</span></span>
+              ) : (
+                <span>Connect WhatsApp</span>
+              )}
+            </Link>
+          )}
+          <button type="button" className="side-btn" onClick={onLogout}>
+            <Icon name="power" size={16} />
+            <span className="long">Log out</span>
+          </button>
+        </div>
       </div>
     </aside>
   );
 }
 
-export default function App() {
-  const [locked, setLocked] = useState(false);
+// Shown to an owner whose account is waiting for approval or has been suspended.
+function AccountNotice({ gym, onLogout, onRefresh }) {
+  const pending = gym.status === 'pending';
+  return (
+    <div className="login">
+      <div className="card card-body notice">
+        <div className={`stat-icon tone-${pending ? 'amber' : 'red'}`}>
+          <Icon name={pending ? 'clock' : 'alert'} size={21} />
+        </div>
+        <h1>{pending ? 'Waiting for approval' : 'Account suspended'}</h1>
+        <p>
+          {pending
+            ? `Thanks for signing up, ${gym.name}. Your account will be ready as soon as it is approved.`
+            : 'This account has been suspended. Contact us if you think this is a mistake.'}
+        </p>
+        <div className="modal-foot" style={{ justifyContent: 'center' }}>
+          <button className="btn secondary" onClick={onLogout}>Log out</button>
+          {pending && <button className="btn" onClick={onRefresh}>Check again</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GymApp({ gym, setGym, onLogout }) {
   const [status, setStatus] = useState(null);
   const [skipped, setSkipped] = useState(() => {
     try {
@@ -82,6 +98,13 @@ export default function App() {
       return false;
     }
   });
+
+  useEffect(() => {
+    const load = () => api('/status').then(setStatus).catch(() => {});
+    load();
+    const timer = setInterval(load, 3000);
+    return () => clearInterval(timer);
+  }, []);
 
   function skipConnect() {
     try {
@@ -92,39 +115,78 @@ export default function App() {
     setSkipped(true);
   }
 
-  useEffect(() => {
-    setUnauthorizedHandler(() => setLocked(true));
-    if (locked) return undefined;
-    const load = () => api('/status').then(setStatus).catch(() => {});
-    load();
-    const timer = setInterval(load, 3000);
-    return () => clearInterval(timer);
-  }, [locked]);
-
-  if (locked) return <Login onDone={() => setLocked(false)} />;
   if (status && !status.connected && !skipped) return <ConnectScreen status={status} onSkip={skipConnect} />;
 
   return (
-    <BrowserRouter>
-      <div className="shell">
-        <Sidebar status={status} />
-        <main className="main">
-          {status && !status.connected && (
-            <div className="alert banner" role="alert">
-              <Icon name="alert" />
-              <div>
-                WhatsApp is not connected, so reminders are paused.{' '}
-                <Link to="/settings">Connect it in Settings</Link>
-              </div>
+    <div className="shell">
+      <Sidebar gym={gym} status={status} onLogout={onLogout} />
+      <main className="main">
+        {status && !status.connected && (
+          <div className="alert banner" role="alert">
+            <Icon name="alert" />
+            <div>
+              WhatsApp is not connected, so reminders are paused.{' '}
+              <Link to="/settings">Connect it in Settings</Link>
             </div>
-          )}
-          <Routes>
-            <Route path="/" element={<Dashboard status={status} />} />
-            <Route path="/members" element={<Members status={status} />} />
-            <Route path="/settings" element={<Settings status={status} />} />
-          </Routes>
-        </main>
+          </div>
+        )}
+        <Routes>
+          <Route path="/members" element={<Members status={status} />} />
+          <Route path="/settings" element={<Settings status={status} gym={gym} setGym={setGym} />} />
+          <Route path="*" element={<Dashboard status={status} gym={gym} />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+function Main() {
+  const [gym, setGym] = useState(undefined); // undefined = still checking, null = logged out
+
+  const refresh = useCallback(
+    () =>
+      api('/auth/me')
+        .then(setGym)
+        .catch(() => setGym(null)),
+    []
+  );
+
+  useEffect(() => {
+    setLoggedOutHandler(() => setGym(null));
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    applyTheme(gym && !gym.is_admin ? gym : null);
+  }, [gym]);
+
+  async function logout() {
+    await api('/auth/logout', { method: 'POST' }).catch(() => {});
+    setGym(null);
+  }
+
+  if (gym === undefined) return null;
+  if (gym === null) return <Auth onDone={setGym} />;
+  if (gym.is_admin) {
+    return (
+      <div className="shell">
+        <Sidebar gym={gym} status={null} onLogout={logout} />
+        <main className="main"><Admin /></main>
       </div>
+    );
+  }
+  if (gym.status !== 'active') return <AccountNotice gym={gym} onLogout={logout} onRefresh={refresh} />;
+  return <GymApp gym={gym} setGym={setGym} onLogout={logout} />;
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="*" element={<Main />} />
+      </Routes>
     </BrowserRouter>
   );
 }

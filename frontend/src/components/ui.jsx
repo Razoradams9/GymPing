@@ -17,7 +17,7 @@ export function Alert({ tone = 'red', children }) {
   if (!children) return null;
   return (
     <div className={`alert tone-${tone}`} role={tone === 'red' ? 'alert' : 'status'}>
-      <Icon name={tone === 'green' ? 'check' : 'alert'} />
+      <Icon name={tone === 'green' ? 'check' : tone === 'blue' ? 'users' : 'alert'} />
       <div>{children}</div>
     </div>
   );

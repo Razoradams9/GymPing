@@ -22,26 +22,19 @@ function monthOf(iso) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export default function Dashboard({ status }) {
+export default function Dashboard({ status, gym }) {
   const [members, setMembers] = useState([]);
   const [log, setLog] = useState({ today: '', reminders: [] });
   const [renewals, setRenewals] = useState([]);
-  const [settings, setSettings] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   async function load() {
     try {
-      const [m, l, r, s] = await Promise.all([
-        api('/members'),
-        api('/reminders'),
-        api('/renewals'),
-        api('/settings')
-      ]);
+      const [m, l, r] = await Promise.all([api('/members'), api('/reminders'), api('/renewals')]);
       setMembers(m);
       setLog(l);
       setRenewals(r);
-      setSettings(s);
     } catch (err) {
       setError(err.message);
     }
@@ -78,12 +71,12 @@ export default function Dashboard({ status }) {
   const expired = members.filter((m) => m.days_remaining < 0);
   const failedToday = [...todays.values()].filter((r) => r.status === 'failed').length;
   const todayLabel = log.today
-    ? new Date(`${log.today}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
+    ? new Date(`${log.today}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })
     : '';
 
   return (
     <div className="page">
-      <PageHead title={settings?.gym_name || 'Dashboard'} subtitle={todayLabel}>
+      <PageHead title="Dashboard" subtitle={todayLabel}>
         <button
           className="btn"
           disabled={!status?.connected}
@@ -101,7 +94,7 @@ export default function Dashboard({ status }) {
 
       <Alert>{error}</Alert>
       <Alert tone="green">{notice}</Alert>
-      {settings && !settings.payment_url && (
+      {!gym.payment_url && (
         <Alert tone="amber">
           You haven't added your payment link yet, so reminders go out without one.{' '}
           <Link to="/settings">Add it in Settings</Link>
@@ -147,7 +140,9 @@ export default function Dashboard({ status }) {
                         {r ? (
                           <StatusBadge reminder={r} />
                         ) : (
-                          <span className="badge tone-neutral">{m.days_remaining <= 4 ? 'Waiting' : 'Starts at 4 days'}</span>
+                          <span className="badge tone-neutral">
+                            {m.reminders_off ? 'Reminders off' : m.days_remaining <= 4 ? 'Waiting' : 'Starts at 4 days'}
+                          </span>
                         )}
                       </td>
                       <td className="actions"><RenewButton onClick={() => renew(m)} /></td>

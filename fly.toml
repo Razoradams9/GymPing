@@ -8,9 +8,8 @@ primary_region = "iad"         # `fly launch` sets this to the region you pick
   PORT = "8080"
   GYMPING_HOSTED = "1"
   GYMPING_DATA_DIR = "/data"
-  # Your gym's time zone, so "9 AM" and "4 days before" mean your local time.
-  # Names: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-  TZ = "America/New_York"
+  # Send hours and dates follow Indian time.
+  TZ = "Asia/Kolkata"
 
 # Members and the WhatsApp link live here and survive restarts.
 [mounts]
